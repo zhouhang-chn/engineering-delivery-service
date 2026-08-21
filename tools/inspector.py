@@ -7,4 +7,5 @@ Inspector never modifies the candidate.
 
 
 def get_inspector_status(work_order_id: str):
+    """Return Inspector runtime status, verdict and findings."""
     raise NotImplementedError
