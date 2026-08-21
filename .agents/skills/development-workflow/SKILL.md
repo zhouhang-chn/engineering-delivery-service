@@ -9,7 +9,7 @@ This skill guides coding agents through the standardized version-driven engineer
 
 ## 1. Core Principles Review (Mandatory Before Any Design)
 
-Before writing any `gap-analysis.md`, `design.md`, or code, you MUST review the architecture doc in [docs/refer/engineering-delivery-service-architecture.md](../../../docs/refer/engineering-delivery-service-architecture.md) and these core principles:
+Before writing any `gap-analysis.md`, `design.md`, or code, you MUST review [docs/designs/system-architecture.md](../../../docs/designs/system-architecture.md) and these core principles:
 
 1. **Supervisor Owns the Delivery**: The top-level controller is a free-running ReAct Supervisor. Never introduce a deterministic workflow/pipeline layer above it — flow control belongs to the Supervisor.
 2. **Delivery Control Is Deterministic**: `tools/` and `control/` provide reliable state and actions (CRUD, lifecycle, retry/timeout primitives, audit). They never decide "what should happen next".
@@ -49,7 +49,7 @@ PLANNED → IN-PROGRESS → COMPLETE
 ### Phase 1: Planning & Design
 1. Create and checkout version branch: `git checkout -b vX.Y-description`
 2. Update `docs/milestones.md` status to `IN-PROGRESS`.
-3. Review the architecture doc and core design principles above.
+3. Review [docs/designs/](../../../docs/designs/) and the core design principles above.
 4. Write `gap-analysis.md` and `design.md`.
 5. If splitting into iterations, write `iterations.md` and iteration design docs.
 6. Write `action-plan.md` with explicit task IDs (e.g. `T1`, `T2`). Ensure the LAST task is: *"Mark version COMPLETE — run `uv run python .agents/scripts/verify_version.py <version>`, update docs/milestones.md, finalize retrospect.md"*.

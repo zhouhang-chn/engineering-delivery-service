@@ -30,7 +30,7 @@ codex/        Codex App Server client + worker/inspector drivers
 sandbox/      Sandbox lifecycle (writable worker, clean inspector)
 deployment/   Docker deployment runtime
 db/           SQLAlchemy models + alembic migrations
-docs/         Reference material (architecture doc)
+docs/         designs/ (design doc set), milestones.md, refer/ (source draft)
 ```
 
 Note: the A2A endpoint package is `a2a_api/`, not `a2a/` — a top-level
