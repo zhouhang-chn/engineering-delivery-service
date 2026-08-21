@@ -5,6 +5,10 @@ Engineering Work Order, not to a Codex turn. Task state maps to Work
 Order progress (submitted / working / input-required / completed / ...).
 
 See architecture doc section 5.
+
+This package is deliberately NOT named `a2a`: a top-level `a2a` package
+would shadow the a2a-sdk distribution (whose import root is `a2a`) for
+every process run from the repo root.
 """
 
 
