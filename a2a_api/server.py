@@ -12,5 +12,9 @@ every process run from the repo root.
 """
 
 
-def create_app():  # TODO(M1): a2a-sdk agent card + task handlers
+def create_app():
+    """Build the A2A agent application (agent card + task handlers).
+
+    Deferred to v0.1 (M1).
+    """
     raise NotImplementedError

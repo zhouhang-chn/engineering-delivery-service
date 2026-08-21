@@ -9,5 +9,9 @@ See architecture doc section 7 for the intended run model.
 """
 
 
-def build_supervisor():  # TODO(M1): assemble ADK LlmAgent with delivery tools
+def build_supervisor():
+    """Assemble the ADK LlmAgent wired with the Delivery Control tools.
+
+    Deferred to v0.1 (M1): prompts/ + tool registration.
+    """
     raise NotImplementedError
