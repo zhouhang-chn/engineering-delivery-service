@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Git commit-msg hook: Enforce structured, detailed commit messages.
+#
+# Install by running:
+#   git config core.hooksPath .agents/scripts/githooks
+#
+# Rules:
+# 1. Header format: <type>(<scope>): <summary> (max 72 chars)
+#    Allowed types: feat, fix, refactor, docs, test, chore, perf, retrospect
+# 2. Non-trivial commits (feat, fix, refactor, perf) MUST include a body
+#    explaining context, key changes, and verification. Bare oneliners are rejected.
+
+commit_msg_file="$1"
+commit_msg=$(grep -v '^#' "$commit_msg_file" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+# 1. Check header line
+header=$(echo "$commit_msg" | head -n 1)
+header_pattern="^(feat|fix|refactor|docs|test|chore|perf|retrospect)(\([a-zA-Z0-9._/-]+\))?: .+"
+
+if ! echo "$header" | grep -Eq "$header_pattern"; then
+    echo ""
+    echo "⛔ Commit message rejected: Header does not match required format."
+    echo ""
+    echo "   Format: <type>(<scope>): <summary>"
+    echo "   Types:  feat, fix, refactor, docs, test, chore, perf, retrospect"
+    echo "   Example: feat(tools): add deployment status polling (T4)"
+    echo ""
+    exit 1
+fi
+
+# Check header length
+if [ ${#header} -gt 72 ]; then
+    echo ""
+    echo "⚠️  Warning: Commit header exceeds 72 characters (${#header} chars)."
+fi
+
+# 2. Enforce detailed body for feat, fix, refactor, perf
+commit_type=$(echo "$header" | sed -E 's/^([a-z]+).*/\1/')
+line_count=$(echo "$commit_msg" | grep -v '^$' | wc -l | tr -d ' ')
+
+if [[ "$commit_type" =~ ^(feat|fix|refactor|perf)$ ]]; then
+    if [ "$line_count" -lt 3 ]; then
+        echo ""
+        echo "⛔ Commit message rejected: Detailed commit body required for '$commit_type'."
+        echo ""
+        echo "   Bare oneliners are not allowed for code modifications."
+        echo "   Please include context, key changes, and verification in the body:"
+        echo ""
+        echo "   Example:"
+        echo "   ------------------------------------------------------------"
+        echo "   feat(tools): add deployment status polling (T4)"
+        echo ""
+        echo "   The Supervisor had no way to observe deployment progress after"
+        echo "   deploy_candidate returned, so it polled Docker with ad-hoc shell."
+        echo ""
+        echo "   Key Changes:"
+        echo "   - tools/deployment.py: Add get_deployment_status reading container"
+        echo "     state and health endpoint into a structured result."
+        echo "   - db/models.py: Persist deployment_id and health on the WorkOrder."
+        echo ""
+        echo "   Verification:"
+        echo "   - uv run pytest tests/ (all pass)"
+        echo "   - uv run ruff check . (0 errors)"
+        echo "   ------------------------------------------------------------"
+        echo ""
+        exit 1
+    fi
+fi
+
+exit 0

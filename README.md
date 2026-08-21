@@ -57,6 +57,27 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Development workflow
+
+Development follows the version-driven workflow in
+[.agents/skills/development-workflow/SKILL.md](.agents/skills/development-workflow/SKILL.md):
+each version (`vX.Y-description`, mapped to the milestone plan in
+[docs/milestones.md](docs/milestones.md)) ships its own
+`docs/versions/vX.Y-*/` docs (gap analysis, design, action plan,
+implementation notes, retrospect) and is closed out with the
+version-retrospect skill and the automated gate:
+
+```bash
+uv run python .agents/scripts/verify_version.py <version-dir>
+```
+
+Commit messages follow the `<type>(<scope>): <summary>` standard. Install
+the enforcing git hooks once per clone:
+
+```bash
+git config core.hooksPath .agents/scripts/githooks
+```
+
 ## Status
 
 Skeleton scaffold — module stubs only. See architecture doc for details.

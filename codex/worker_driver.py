@@ -7,4 +7,5 @@ inspection, not that the Work Order is complete.
 
 
 def run_worker_task(work_order_id: str, task: str):
+    """Drive one Worker turn to completion; return its result handle."""
     raise NotImplementedError

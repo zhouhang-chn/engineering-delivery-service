@@ -6,4 +6,5 @@ baseline commit. MVP M1 uses a single fixed FastAPI template repository.
 
 
 def resolve_project(work_order_id: str):
+    """Return the repository URL and baseline commit for a Work Order."""
     raise NotImplementedError

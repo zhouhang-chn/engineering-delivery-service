@@ -9,4 +9,5 @@ evidence. Never fixes code itself.
 
 
 def run_inspection(work_order_id: str, candidate_commit: str):
+    """Drive one full inspection turn; return the verdict payload."""
     raise NotImplementedError
