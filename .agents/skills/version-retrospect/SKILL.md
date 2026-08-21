@@ -115,7 +115,7 @@ All retrospective learnings must be formulated into actionable items across four
 
 | Category | Purpose | Typical Target Locations |
 | :--- | :--- | :--- |
-| **Category 1: Core Design Principles** | Codify permanent architectural rules so future agents never repeat mistakes. | `docs/refer/engineering-delivery-service-architecture.md`, `AGENTS.md`, `README.md` |
+| **Category 1: Core Design Principles** | Codify permanent architectural rules so future agents never repeat mistakes. | `docs/designs/system-architecture.md`, `AGENTS.md`, `README.md` |
 | **Category 2: Quality Gates & Verification** | Add automated AST/runtime checks to prevent regressions. | `.agents/scripts/verify_version.py`, `.agents/scripts/githooks/` |
 | **Category 3: Tooling, Defaults & Infrastructure** | Provide reusable utilities, fixtures, and sensible defaults. | `.agents/scripts/`, `pyproject.toml`, `docker-compose.yml` |
 | **Category 4: Next Milestone Propagation** | Update future version designs and action plans to adopt lessons learned. | `docs/versions/vX.Y+1/design.md`, `action-plan.md`, `docs/milestones.md` |
@@ -184,7 +184,7 @@ Create or finalize `docs/versions/vX.Y-<name>/retrospect.md` using this compact,
 ## 4. Action Items & System Evolution
 | ID | Action Item | Category | Target Location | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **A1** | <Description> | Category 1 (Principles) | docs/refer/engineering-delivery-service-architecture.md | ✅ Done |
+| **A1** | <Description> | Category 1 (Principles) | docs/designs/system-architecture.md | ✅ Done |
 | **A2** | <Description> | Category 2 (Gates) | .agents/scripts/verify_version.py | ✅ Done |
 | **A3** | <Description> | Category 3 (Tooling) | .agents/scripts/ | ✅ Done |
 | **A4** | <Description> | Category 4 (Next Version) | docs/versions/vX.Y+1/design.md | ✅ Done |
