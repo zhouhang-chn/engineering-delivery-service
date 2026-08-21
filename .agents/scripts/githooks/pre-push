@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Pre-push hook: prevent direct pushes to main/master branch.
+#
+# Install by running:
+#   git config core.hooksPath .agents/scripts/githooks
+#
+# This hook allows:
+# - Pushing to branches other than main/master
+# - Merging a version branch into main via pull request (the only supported path)
+#
+# Git invokes pre-push with the remote name/URL as arguments and feeds one
+# line per pushed ref on stdin: "<local-ref> <local-sha> <remote-ref> <remote-sha>".
+# We must check the REMOTE ref being pushed, not the locally checked-out
+# branch — checking HEAD would block pushing any branch while main happens to
+# be checked out, and would pass a direct `git push` of main from a
+# detached or renamed HEAD.
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/main|refs/heads/master)
+            echo ""
+            echo "⛔ Pre-push hook: Direct push to '${remote_ref#refs/heads/}' is not allowed."
+            echo ""
+            echo "   All work must be done on a version branch (e.g., v0.1-single-worker-e2e)."
+            echo "   To complete a version:"
+            echo "     1. Ensure all quality gates pass: uv run python .agents/scripts/verify_version.py <version>"
+            echo "     2. Push the version branch and merge into main via pull request."
+            echo ""
+            exit 1
+            ;;
+    esac
+done
+
+exit 0

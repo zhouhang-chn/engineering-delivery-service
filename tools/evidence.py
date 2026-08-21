@@ -7,4 +7,5 @@ checks and other verifiable artifacts attached to a Work Order
 
 
 def record_evidence(work_order_id: str, kind: str, payload: dict):
+    """Persist one verifiable artifact (test run, verdict, health check)."""
     raise NotImplementedError

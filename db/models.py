@@ -14,7 +14,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
-    pass
+    """Shared declarative base for all EDS durable state."""
 
 
 def _uuid() -> str:
@@ -22,6 +22,8 @@ def _uuid() -> str:
 
 
 class WorkOrder(Base):
+    """One Engineering Work Order: the durable source of truth (doc §12)."""
+
     __tablename__ = "work_orders"
 
     # identity
@@ -70,6 +72,8 @@ class WorkOrder(Base):
 
 
 class Evidence(Base):
+    """A verifiable artifact (test run, verdict, health check) for a Work Order."""
+
     __tablename__ = "evidence"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
