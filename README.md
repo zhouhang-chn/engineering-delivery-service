@@ -23,14 +23,18 @@ owns the loop. There is deliberately no deterministic workflow layer.
 
 ```
 agent/        ReAct Supervisor + prompts
-a2a/          A2A endpoint (Task ≈ Engineering Work Order)
+a2a_api/      A2A endpoint (Task ≈ Engineering Work Order)
 tools/        Delivery Control tools exposed to the Supervisor
 control/      Deterministic state / git / policy primitives
 codex/        Codex App Server client + worker/inspector drivers
 sandbox/      Sandbox lifecycle (writable worker, clean inspector)
 deployment/   Docker deployment runtime
 db/           SQLAlchemy models + alembic migrations
+docs/         Reference material (architecture doc)
 ```
+
+Note: the A2A endpoint package is `a2a_api/`, not `a2a/` — a top-level
+`a2a` package would shadow the `a2a-sdk` distribution at import time.
 
 ## Milestones
 
