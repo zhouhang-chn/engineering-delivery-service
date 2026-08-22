@@ -63,6 +63,20 @@ def test_prompt_embeds_task_contract(tmp_path: Path) -> None:
     assert "uv run pytest -q" in prompt
 
 
+def test_prompt_forbids_worker_commits(tmp_path: Path) -> None:
+    """The worker must not commit: the sandbox denies .git writes.
+
+    Instructing the worker to commit only buys a doomed fight with the
+    Codex ``workspace-write`` sandbox (``.git/index.lock: Operation not
+    permitted``); Delivery Control records the candidate commit itself,
+    outside the sandbox.
+    """
+    prompt = build_worker_prompt(make_task(tmp_path))
+    assert "Do not commit" in prompt
+    assert ".git" in prompt
+    assert "working tree" in prompt
+
+
 def test_scripted_worker_writes_files_and_finishes(tmp_path: Path) -> None:
     task = make_task(tmp_path)
     registry = InMemoryWorkerRegistry()
