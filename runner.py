@@ -1,14 +1,18 @@
 """CLI runner: requirement in, deployed <port>/docs out.
 
-Drives the v0.1.1 engine end to end:
+Drives the delivery engine end to end:
 
   work order -> sandbox -> git checkout -> Worker turn (Codex or scripted)
   -> pytest evidence -> candidate commit -> docker deploy -> health check
 
-The Supervisor (v0.1.3) and A2A endpoint (v0.1.4) reuse the same modules;
-this runner remains the developer entrypoint.
+Since v0.1.2 every step goes through the Delivery Control tools: the
+work order, its audit events, evidence and deployment facts live in
+PostgreSQL and survive restarts (`get_current_state`). The Supervisor
+(v0.1.3) and A2A endpoint (v0.1.4) will call the same tools; this
+runner remains the developer entrypoint.
 
 Usage:
+  docker compose up -d postgres && uv run alembic upgrade head
   uv run python runner.py "Add a GET /hello endpoint returning hello world"
   uv run python runner.py "..." --scripted examples/scripted_worker_hello.json
 """
@@ -28,12 +32,22 @@ from codex.worker_driver import (
     CodexWorkerDriver,
     ScriptedWorker,
     WorkerTask,
-    get_worker_status,
     run_worker_task,
 )
 from control import repository
-from deployment import docker
+from control import state as control_state
 from sandbox import manager as sandbox_manager
+from tools.deployment import deploy_candidate
+from tools.evidence import record_evidence
+from tools.project import resolve_project
+from tools.runtime import create_worker_runtime
+from tools.work_order import (
+    get_current_state,
+    mark_complete,
+    mark_failed,
+    update_work_order,
+)
+from tools.worker import get_worker_status
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 TEMPLATE_SOURCE = PROJECT_ROOT / "template" / "fastapi-service"
@@ -138,25 +152,43 @@ def run_delivery(
     port: int | None = None,
     test_command: str | None = None,
     worker_timeout_s: float = DEFAULT_WORKER_TIMEOUT_S,
+    session_factory=None,
 ) -> DeliveryResult:
-    """Execute the full delivery loop for one requirement."""
+    """Execute the full delivery loop for one requirement.
+
+    Every step is durable: the work order, audit events, evidence and
+    deployment facts live in PostgreSQL (``session_factory`` overrides
+    the engine for tests; default resolves via ``EDS_DATABASE_URL``).
+    """
     work_order_id = new_work_order_id()
+    if session_factory is not None:
+        control_state.configure(session_factory)
     base_dir = (
         Path(work_dir).resolve() if work_dir is not None else sandbox_manager.work_dir()
     )
     base_dir.mkdir(parents=True, exist_ok=True)
     resolved_repo_url = repo_url or _resolve_repo_url(base_dir)
+    update_work_order(
+        work_order_id,
+        original_request=requirement,
+        confirmed_requirement=requirement,
+        acceptance_criteria=list(acceptance_criteria),
+        repository=resolved_repo_url,
+        overall_status="in_progress",
+    )
     result = DeliveryResult(work_order_id=work_order_id, requirement=requirement,
                             repo_url=resolved_repo_url)
     _log(f"work order {work_order_id}: {requirement}")
 
-    sandbox = sandbox_manager.create_sandbox(work_order_id, "worker", base_dir=base_dir)
-    _log(f"sandbox ready: {sandbox.path}")
+    runtime = create_worker_runtime(work_order_id, base_dir=base_dir)
+    _log(f"sandbox ready: {runtime['sandbox_path']}")
 
+    project = resolve_project(work_order_id)
     repo_dir = repository.worker_repo_dir(work_order_id, base_dir=base_dir)
     result.baseline_commit = repository.checkout(
-        work_order_id, resolved_repo_url, None, repo_dir=repo_dir
+        work_order_id, project["repository"], None, repo_dir=repo_dir
     )
+    update_work_order(work_order_id, baseline_commit=result.baseline_commit)
     _log(f"checked out baseline {result.baseline_commit[:12]}")
 
     task = WorkerTask(
@@ -172,29 +204,32 @@ def run_delivery(
     deadline = time.monotonic() + worker_timeout_s
     while True:
         status = get_worker_status(work_order_id)
-        if status.status in ("done", "failed"):
+        if status["status"] in ("done", "failed"):
             break
         if time.monotonic() > deadline:
             active_worker_timeout = f"worker timed out after {worker_timeout_s}s"
             result.worker_status = "failed"
             result.worker_error = active_worker_timeout
             result.overall_status = "failed"
+            mark_failed(work_order_id, active_worker_timeout)
             _log(active_worker_timeout)
             return result
         time.sleep(POLL_INTERVAL_S)
-    result.worker_status = status.status
-    result.worker_summary = status.summary
-    result.worker_error = status.error
-    _log(f"worker {status.status}" + (f": {status.summary}" if status.summary else ""))
+    result.worker_status = status["status"]
+    result.worker_summary = status["summary"]
+    result.worker_error = status["error"]
+    _log(f"worker {status['status']}" + (f": {status['summary']}" if status["summary"] else ""))
 
-    if status.status == "failed":
+    if status["status"] == "failed":
         result.overall_status = "failed"
+        mark_failed(work_order_id, status["error"] or "worker failed")
         _log("worker failed; no candidate to deliver")
         return result
 
     evidence = run_pytest_evidence(repo_dir, task.test_command)
     result.pytest_evidence = evidence
     result.evidence.append({"kind": "pytest_run", "payload": evidence})
+    record_evidence(work_order_id, "pytest_run", evidence)
     _log(
         f"pytest evidence: {evidence['status']} "
         f"({evidence['passed']} passed, {evidence['failed']} failed)"
@@ -205,28 +240,54 @@ def run_delivery(
         f"feat: {requirement[:72]}",
         repo_dir=repo_dir,
     )
+    update_work_order(work_order_id, candidate_commit=result.candidate_commit)
     _log(f"candidate commit {result.candidate_commit[:12]}")
 
     if evidence["status"] != "passed":
         result.overall_status = "failed"
+        mark_failed(
+            work_order_id,
+            f"pytest evidence failed ({evidence['failed']} failed, "
+            f"{evidence['errors']} errors)",
+        )
         _log("tests failed; skipping deployment")
         return result
 
-    record = docker.deploy(
-        repo_dir,
+    deployment = deploy_candidate(
+        work_order_id,
+        result.candidate_commit,
         port=port,
-        image_tag=f"eds/{work_order_id}:candidate",
-        container_name=f"eds-{work_order_id}",
         client=docker_client,
+        base_dir=base_dir,
     )
-    result.deployment_status = record.status
-    result.base_url = record.base_url
-    result.docs_url = record.docs_url
-    result.port = record.port
-    healthy = docker.health_check(record.base_url)
-    result.deployment_health = "healthy" if healthy else "unhealthy"
-    result.overall_status = "delivered" if healthy else "degraded"
-    _log(f"deployed at {record.base_url} (health: {result.deployment_health})")
+    result.deployment_status = deployment["status"]
+    result.base_url = deployment["base_url"]
+    result.docs_url = deployment["docs_url"]
+    result.port = deployment["port"]
+    result.deployment_health = deployment["health"]
+    _log(f"deployed at {deployment['base_url']} (health: {deployment['health']})")
+
+    if deployment["health"] == "healthy":
+        record_evidence(
+            work_order_id,
+            "deployment_check",
+            {
+                "base_url": deployment["base_url"],
+                "docs_url": deployment["docs_url"],
+                "health": "healthy",
+            },
+        )
+        mark_complete(
+            work_order_id,
+            f"delivered {requirement[:60]} at {deployment['docs_url']}",
+        )
+        result.overall_status = "delivered"
+    else:
+        mark_failed(
+            work_order_id,
+            f"deployed at {deployment['base_url']} but health check failed",
+        )
+        result.overall_status = "degraded"
     return result
 
 
@@ -268,6 +329,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"deployment   : {result.deployment_status or '-'} "
           f"({result.deployment_health or '-'})")
     print(f"docs url     : {result.docs_url or '-'}")
+    state = get_current_state(result.work_order_id)
+    print(f"durable      : overall_status={state['overall_status']}, "
+          f"{state['event_count']} events, {state['evidence_count']} evidence "
+          f"(PostgreSQL, survives restarts)")
     return 0 if result.overall_status in ("delivered", "degraded") else 1
 
 

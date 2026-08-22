@@ -6,7 +6,7 @@ tracks version-level tasks only.
 
 - [x] T1 — Write version-level gap analysis, design, and iteration split
 - [x] T2 — Complete **v0.1.1-worker-engine** (all iteration tasks checked, tests green)
-- [ ] T3 — Complete **v0.1.2-durable-state-tools**
+- [x] T3 — Complete **v0.1.2-durable-state-tools**
 - [ ] T4 — Complete **v0.1.3-react-supervisor**
 - [ ] T5 — Complete **v0.1.4-a2a-endpoint** (includes full-chain e2e + dogfooding)
 - [ ] T6 — Complete **v0.1.5-eds-cli** (user test loop: serve / submit / status --watch / open)

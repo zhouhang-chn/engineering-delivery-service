@@ -5,8 +5,9 @@ commits the candidate. Its "done" only means the candidate is ready for
 inspection, not that the Work Order is complete.
 
 Status transitions: ``starting -> running -> waiting? -> done | failed``.
-v0.1.1 keeps status + events in an in-memory registry; v0.1.2 moves the
-registry to PostgreSQL behind the same interface.
+Status + events live in PostgreSQL (:class:`PostgresWorkerRegistry`);
+:class:`InMemoryWorkerRegistry` is the hermetic test double with the
+same interface.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 from codex.app_server_client import CodexAppServerClient, CodexAppServerError
+from control.state import append_event, session_scope
 
 WORKER_STATUSES = ("starting", "running", "waiting", "done", "failed")
 DEFAULT_TEST_COMMAND = "uv run pytest -q"
@@ -58,8 +60,12 @@ class WorkerStatus:
     error: str | None = None
 
 
-class WorkerRegistry:
-    """In-memory worker status + event store (v0.1.2: PostgreSQL)."""
+class InMemoryWorkerRegistry:
+    """Thread-safe in-memory status + event store (test double).
+
+    The delivery path uses :class:`PostgresWorkerRegistry`; this twin
+    keeps the exact same interface for hermetic unit tests.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -120,13 +126,112 @@ class WorkerRegistry:
             )
 
 
-_registry = WorkerRegistry()
+class PostgresWorkerRegistry:
+    """Durable registry: Work Order columns + ``worker.*`` audit rows.
+
+    Same interface as :class:`InMemoryWorkerRegistry`, but every fact
+    lands in PostgreSQL via ``control.state.session_scope`` (and thus
+    whatever factory ``control.state.configure`` installed), so status
+    survives process restarts. Status transitions audit as
+    ``worker_status.changed`` (excluded from the events view, which by
+    interface contract lists only observed worker actions).
+    """
+
+    FIELD_MAP: ClassVar[dict[str, str]] = {
+        "summary": "worker_summary",
+        "error": "worker_error",
+        "candidate_commit": "candidate_commit",
+        "thread_id": "worker_thread_id",
+    }
+
+    def _ensure_row(self, session, work_order_id: str):
+        """Get the WorkOrder row, creating and flushing a stub when new."""
+        from db.models import WorkOrder
+
+        work_order = session.get(WorkOrder, work_order_id)
+        if work_order is None:
+            work_order = WorkOrder(id=work_order_id, worker_status="starting")
+            session.add(work_order)
+            session.flush()  # worker.* events reference this row
+        return work_order
+
+    def init(self, work_order_id: str) -> None:
+        """Register a work order in 'starting' state."""
+        with session_scope() as session:
+            work_order = self._ensure_row(session, work_order_id)
+            if work_order.worker_status is None:
+                work_order.worker_status = "starting"
+            session.flush()
+
+    def set_status(self, work_order_id: str, status: str, **fields: object) -> None:
+        """Transition the worker status, optionally setting extra fields."""
+        if status not in WORKER_STATUSES:
+            raise ValueError(f"unknown worker status {status!r}")
+        unknown = set(fields) - set(self.FIELD_MAP)
+        if unknown:
+            raise ValueError(f"unknown worker field(s): {sorted(unknown)}")
+
+        with session_scope() as session:
+            work_order = self._ensure_row(session, work_order_id)
+            work_order.worker_status = status
+            for name, value in fields.items():
+                if value is not None:
+                    setattr(work_order, self.FIELD_MAP[name], value)
+            append_event(
+                session, work_order_id, "worker_status.changed", {"status": status}
+            )
+            session.flush()
+
+    def add_event(self, work_order_id: str, type: str, payload: dict | None = None) -> None:
+        """Append an observed worker event."""
+        with session_scope() as session:
+            self._ensure_row(session, work_order_id)
+            append_event(session, work_order_id, f"worker.{type}", payload or {})
+
+    def get(self, work_order_id: str) -> WorkerStatus:
+        """Return an immutable status snapshot."""
+        with session_scope() as session:
+            from db.models import Event, WorkOrder
+
+            work_order = session.get(WorkOrder, work_order_id)
+            if work_order is None or work_order.worker_status is None:
+                return WorkerStatus(status="unknown")
+            rows = (
+                session.query(Event)
+                .filter(
+                    Event.work_order_id == work_order_id,
+                    Event.type.like("worker.%"),
+                    Event.type != "worker_status.changed",
+                )
+                .order_by(Event.id.desc())
+                .limit(50)
+                .all()
+            )
+            events = tuple(
+                WorkerEvent(row.type.removeprefix("worker."), row.payload or {})
+                for row in reversed(rows)
+            )
+            return WorkerStatus(
+                status=work_order.worker_status,
+                events=events,
+                summary=work_order.worker_summary,
+                candidate_commit=work_order.candidate_commit,
+                error=work_order.worker_error,
+            )
+
+
+def default_registry() -> PostgresWorkerRegistry:
+    """The process default registry: durable, backed by control.state."""
+    return PostgresWorkerRegistry()
+
+
+AnyWorkerRegistry = InMemoryWorkerRegistry | PostgresWorkerRegistry
 
 
 class WorkerRuntime(Protocol):
     """The interface both the Codex worker and ScriptedWorker implement."""
 
-    def execute(self, work_order_id: str, task: WorkerTask, registry: WorkerRegistry) -> None:
+    def execute(self, work_order_id: str, task: WorkerTask, registry: AnyWorkerRegistry) -> None:
         """Run one worker turn to a terminal status, updating the registry."""
 
 
@@ -178,7 +283,7 @@ class CodexWorkerDriver:
     def __init__(self, *, poll_timeout: float = 1.0):
         self.poll_timeout = poll_timeout
 
-    def execute(self, work_order_id: str, task: WorkerTask, registry: WorkerRegistry) -> None:
+    def execute(self, work_order_id: str, task: WorkerTask, registry: AnyWorkerRegistry) -> None:
         """Run one Codex turn to completion, mirroring events into the registry."""
         registry.set_status(work_order_id, "running")
         config = {
@@ -201,7 +306,7 @@ class CodexWorkerDriver:
     def _consume_events(
         self,
         client: CodexAppServerClient,
-        registry: WorkerRegistry,
+        registry: AnyWorkerRegistry,
         work_order_id: str,
         thread_id: str,
         turn_id: str,
@@ -233,7 +338,7 @@ class CodexWorkerDriver:
 
     def _finish_turn(
         self,
-        registry: WorkerRegistry,
+        registry: AnyWorkerRegistry,
         work_order_id: str,
         turn: dict,
         last_message: str | None,
@@ -266,7 +371,7 @@ class ScriptedWorker:
             script = json.loads(raw)
         self.script = script
 
-    def execute(self, work_order_id: str, task: WorkerTask, registry: WorkerRegistry) -> None:
+    def execute(self, work_order_id: str, task: WorkerTask, registry: AnyWorkerRegistry) -> None:
         """Replay the script against the task workspace and registry."""
         registry.set_status(work_order_id, "running")
         for step in self.script:
@@ -304,13 +409,14 @@ def run_worker_task(
     task: WorkerTask,
     *,
     worker: WorkerRuntime | None = None,
-    registry: WorkerRegistry | None = None,
+    registry: AnyWorkerRegistry | None = None,
 ) -> str:
     """Start one worker turn in the background; return the work order id.
 
-    The handle is polled via :func:`get_worker_status`.
+    The handle is polled via :func:`get_worker_status`. Without an
+    explicit registry the durable PostgreSQL registry is used.
     """
-    active_registry = registry or _registry
+    active_registry = registry or default_registry()
     worker = worker or CodexWorkerDriver()
     active_registry.init(work_order_id)
     thread = threading.Thread(
@@ -324,7 +430,7 @@ def run_worker_task(
 
 
 def get_worker_status(
-    work_order_id: str, registry: WorkerRegistry | None = None
+    work_order_id: str, registry: AnyWorkerRegistry | None = None
 ) -> WorkerStatus:
     """Read the current worker status snapshot for a work order."""
-    return (registry or _registry).get(work_order_id)
+    return (registry or default_registry()).get(work_order_id)
