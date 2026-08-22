@@ -57,9 +57,14 @@ uv run pytest
 uv run ruff check .
 ```
 
-Configuration is environment-based (no config files): `.env.example`
-lists the variables — export the ones you need (or
-`set -a; source .env; set +a` if you keep them in a file).
+Configuration lives in `.env`: copy the template and fill in real
+values — `cp .env.example .env`. The application loads the file itself
+at every entrypoint (`eds` CLI, `python -m a2a_api.server`,
+`python -m agent.runner`, `alembic`), model credentials included —
+`GOOGLE_API_KEY` in `.env` is what enables the ADK Supervisor model —
+so nothing needs to be exported in the shell. Exported environment
+variables still win over the file when both are set. Real secrets go
+only in gitignored `.env`; `.env.example` carries just the names.
 
 ## Running EDS
 
@@ -94,9 +99,9 @@ behind the CLI is the A2A surface from v0.1.4 (`message/send`,
 A2A-compatible client works too.
 
 Prerequisites: a running Docker daemon (postgres + deployment); for the
-default Supervisor an LLM credential (`EDS_LLM_MODEL`, default
-`gemini-2.5-flash`, plus e.g. `GOOGLE_API_KEY`); the `codex` CLI logged
-in (`codex login`) for real Worker turns.
+default Supervisor an LLM credential (`GOOGLE_API_KEY` in `.env`,
+model `EDS_LLM_MODEL`, default `gemini-2.5-flash`); the `codex` CLI
+logged in (`codex login`) for real Worker turns.
 
 **Demo mode (no LLM credential, no Codex):** a rule-based supervisor
 backend and a scripted worker let the full loop run offline —
@@ -126,7 +131,8 @@ One-shot alternatives: `uv run python -m agent.runner "<requirement>"`
 | `EDS_WORK_DIR` | `.eds/work` | sandboxes + published template repo |
 | `EDS_TEMPLATE_REPO_URL` | auto-published `template/fastapi-service` | baseline repository to clone |
 | `EDS_CODEX_APP_SERVER_URL` | `codex app-server` | Codex App Server command |
-| `EDS_LLM_MODEL` | `gemini-2.5-flash` | Supervisor model (credentials via the ADK provider env, e.g. `GOOGLE_API_KEY`) |
+| `EDS_LLM_MODEL` | `gemini-2.5-flash` | Supervisor model (credentials: `GOOGLE_API_KEY` from `.env`/environment) |
+| `GOOGLE_API_KEY` | – | Google Gemini API key for the ADK Supervisor model (`.env`) |
 | `EDS_A2A_HOST` / `EDS_A2A_PORT` | `127.0.0.1` / `8080` | A2A endpoint bind address (`eds serve`) |
 | `EDS_A2A_URL` | `http://127.0.0.1:8080` | endpoint the `eds` CLI talks to |
 | `EDS_SUPERVISOR_BACKEND` | `llm` | set `deterministic` for the credential-free demo backend |

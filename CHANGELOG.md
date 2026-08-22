@@ -6,6 +6,17 @@ milestone plan in `docs/milestones.md`.
 
 ## [Unreleased]
 
+### Chores
+
+- Added in-app `.env` loading (`control/env.py`, python-dotenv): every
+  entrypoint (`eds` CLI, `python -m a2a_api.server`,
+  `python -m agent.runner`, `alembic`) bootstraps its environment from
+  gitignored `.env` at the repository root, model credentials included —
+  `GOOGLE_API_KEY` there is what enables the ADK Supervisor model, no
+  shell exports needed. Exported variables keep precedence over the file.
+- Extended `.env.example` with the model configuration block
+  (`GOOGLE_API_KEY`, optional `GOOGLE_GENAI_USE_VERTEXAI`, `EDS_LLM_MODEL`).
+
 ### v0.1 — Single Worker End-to-End (M1)
 
 #### v0.1.5 — EDS CLI

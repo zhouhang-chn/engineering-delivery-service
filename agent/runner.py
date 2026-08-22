@@ -294,7 +294,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from codex.worker_driver import ScriptedWorker
+    from control.env import load_env
     from sandbox import manager as sandbox_manager
+
+    load_env()
 
     base_dir = (
         Path(args.work_dir).resolve()
