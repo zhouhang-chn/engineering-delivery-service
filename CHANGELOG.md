@@ -6,6 +6,32 @@ milestone plan in `docs/milestones.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Worker runtime crashes now surface in durable state instead of dying
+  silently: an exception escaping a worker `execute` (e.g. an unspawnable
+  `EDS_CODEX_APP_SERVER_URL` command) is caught by a crash guard around
+  the worker thread and persisted as worker status `failed` plus a
+  `worker.crash` audit event. Previously the thread died with the status
+  stuck on `running` forever, and the Supervisor polled a dead worker
+  with no way to detect it (observed live: a work order hung >10 min on
+  `FileNotFoundError: http://localhost:1455`).
+- Supervisor system prompt now distinguishes a worker **runtime crash**
+  (restart the turn once via `start_worker_turn`; on recurrence
+  `mark_failed` quoting the worker error) from an **engineering
+  failure** (judge from evidence). Dogfooded end-to-end: crash →
+  detect → one restart → same crash → `mark_failed` with the real
+  error, all within one supervisor turn (~15 s).
+- Turn-budget exhaustion now names the last observed turn error (e.g. a
+  sustained LLM 429 quota outage) in the `mark_failed` reason, instead
+  of the opaque "budget exhausted without a terminal decision" —
+  observed live when every supervisor model call failed to
+  `RESOURCE_EXHAUSTED` while the worker was still working.
+- `.env.example`: `EDS_CODEX_APP_SERVER_URL` was shipped as
+  `http://localhost:1455` — a value that looks like an endpoint but is
+  executed as a command line. Now documents the command form and
+  defaults to `codex app-server`.
+
 ### Chores
 
 - Added in-app `.env` loading (`control/env.py`, python-dotenv): every

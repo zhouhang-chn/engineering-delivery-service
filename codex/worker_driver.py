@@ -404,6 +404,27 @@ class ScriptedWorker:
             registry.set_status(work_order_id, "done", summary="scripted work complete")
 
 
+def _crash_guarded_execute(
+    worker: WorkerRuntime,
+    work_order_id: str,
+    task: WorkerTask,
+    registry: AnyWorkerRegistry,
+) -> None:
+    """Run one worker turn; an unexpected crash becomes a durable failure.
+
+    An exception escaping ``worker.execute`` used to kill the worker
+    thread silently, leaving the status on ``running`` forever — the
+    Supervisor would poll a dead worker with no way to detect it. The
+    guard persists the crash so ``get_worker_status`` reports it.
+    """
+    try:
+        worker.execute(work_order_id, task, registry)
+    except Exception as exc:  # noqa: BLE001 - the guard itself must never raise
+        error = f"{type(exc).__name__}: {exc}"
+        registry.set_status(work_order_id, "failed", error=error)
+        registry.add_event(work_order_id, "crash", {"error": error})
+
+
 def run_worker_task(
     work_order_id: str,
     task: WorkerTask,
@@ -420,8 +441,8 @@ def run_worker_task(
     worker = worker or CodexWorkerDriver()
     active_registry.init(work_order_id)
     thread = threading.Thread(
-        target=worker.execute,
-        args=(work_order_id, task, active_registry),
+        target=_crash_guarded_execute,
+        args=(worker, work_order_id, task, active_registry),
         daemon=True,
         name=f"eds-worker-{work_order_id}",
     )
