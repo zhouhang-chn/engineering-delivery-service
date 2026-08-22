@@ -45,7 +45,10 @@ class SupervisorToolConfig:
 
     Mirrors ``control.state.configure``: tests and the CLI point the
     wrappers at their own worker / docker client / sandbox root; the
-    defaults hit the real Codex driver and real Docker.
+    defaults hit the real Codex driver and real Docker. ``repo_url``
+    pins the baseline repository so non-CLI callers (A2A endpoint) stay
+    thin; ``llm_factory`` (``work_order_id -> BaseLlm``) supplies
+    per-work-order LLM doubles for tests.
     """
 
     worker: object = None
@@ -53,6 +56,8 @@ class SupervisorToolConfig:
     base_dir: str | Path | None = None
     port: int | None = None
     test_command: str | None = None
+    repo_url: str | None = None
+    llm_factory: object = None
 
 
 _config = SupervisorToolConfig()
@@ -68,6 +73,11 @@ def reset_supervisor_config() -> None:
     """Return to default dependencies (real Codex driver, real Docker)."""
     global _config
     _config = SupervisorToolConfig()
+
+
+def current_config() -> SupervisorToolConfig:
+    """The active tool configuration (worker, docker client, llm...)."""
+    return _config
 
 
 def _error(exc: Exception) -> dict:
