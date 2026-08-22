@@ -77,13 +77,23 @@ PLANNED → IN-PROGRESS → COMPLETE
    ```
    The script MUST pass with exit code 0.
 
+### Iteration Completion (after every iteration)
+
+Every iteration must end runnable — each ships a demonstrable system slice. Before declaring an iteration done or starting the next one:
+
+1. Run the iteration gates: `uv run pytest tests/ -q` and `uv run ruff check .`, plus marked suites whose environment is available (e.g. `uv run pytest -m docker`).
+2. Dogfood the iteration's runnable surface end to end — execute the real entrypoint and capture real output, not just unit tests.
+3. **Update `README.md` — "Running EDS" section**: rewrite the run instructions to the entrypoint the just-finished iteration provides (e.g. the CLI runner now; the `eds` CLI / A2A endpoint in later iterations). A newcomer cloning the repo at this commit must be able to run the system by copy-pasting that section. Also refresh the README **Status** line. Keep the section minimal and accurate — remove instructions for surfaces that no longer exist.
+4. Check off the iteration's `action-plan.md` tasks and the corresponding row in the version-level action plan.
+5. Commit & push per section 6.
+
 ### Phase 4: Version Completion & Agile Retrospective
 1. Complete manual review and operational dogfooding checklist.
 2. Conduct the Scrum Agile milestone retrospective using the [version-retrospect skill](file:///.agents/skills/version-retrospect/SKILL.md) and finalize `retrospect.md` (4-quadrant inspection, 5-Whys root cause analysis, sprint scorecard).
 3. **Execute in-sprint action items immediately**: Update the architecture principles documentation, `AGENTS.md` (when present), and `.agents/scripts/`.
 4. Propagate next milestone action items into `docs/versions/vX.Y+1-*/`.
 5. Update `docs/milestones.md` to `COMPLETE` with date.
-6. Update `CHANGELOG.md` and `README.md`.
+6. Update `CHANGELOG.md` and give `README.md` a final version-close pass — run instructions are already maintained per iteration (see *Iteration Completion*), so verify they match the completed version rather than writing them from scratch.
 7. Merge version branch into `main` via pull request.
 
 ---
