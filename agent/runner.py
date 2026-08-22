@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 import threading
 import uuid
@@ -218,7 +219,7 @@ def start_supervised_delivery(
     immediately; callers poll durable state). Progress is observable
     through ``get_current_state`` from the moment this returns.
     """
-    from codex.worker_driver import CodexWorkerDriver
+    from codex.worker_driver import CodexWorkerDriver, ScriptedWorker
     from sandbox import manager as sandbox_manager
 
     config = current_config()
@@ -234,7 +235,16 @@ def start_supervised_delivery(
         "llm_factory": config.llm_factory,
     }
     if resolved["worker"] is None:
-        resolved["worker"] = CodexWorkerDriver()
+        # demo/tests: a scripted worker replaying a canned Codex turn
+        worker_script = os.environ.get("EDS_WORKER_SCRIPT")
+        resolved["worker"] = (
+            ScriptedWorker(worker_script) if worker_script else CodexWorkerDriver()
+        )
+    if resolved["llm_factory"] is None and os.environ.get("EDS_SUPERVISOR_BACKEND") == "deterministic":
+        # demo/tests: rule-based supervisor (no LLM credentials needed)
+        from agent.deterministic import deterministic_llm_factory
+
+        resolved["llm_factory"] = deterministic_llm_factory
     resolved_base = resolved["base_dir"]
     resolved_base.mkdir(parents=True, exist_ok=True)
     work_order_id = f"wo-{uuid.uuid4().hex[:12]}"

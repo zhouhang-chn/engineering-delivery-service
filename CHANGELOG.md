@@ -6,7 +6,19 @@ milestone plan in `docs/milestones.md`.
 
 ## [Unreleased]
 
-### v0.1 — Single Worker End-to-End (M1, in progress)
+### v0.1 — Single Worker End-to-End (M1)
+
+#### v0.1.5 — EDS CLI
+
+- Added `cli.py` (console script `eds`, flat-layout packaging via
+  hatchling): the reference external caller — `serve`, `submit`,
+  `status --watch`, `open` over the A2A protocol only. Exit codes for
+  scripting: 0 completed, 1 failed, 2 still running.
+- Added `agent/deterministic.py`: rule-based fallback Supervisor model
+  (`EDS_SUPERVISOR_BACKEND=deterministic`, `EDS_WORKER_SCRIPT`) so the
+  full delivery loop runs in demos without LLM credentials; every
+  stage decision derives from durable state.
+- Declared `httpx` as an explicit dependency.
 
 #### v0.1.4 — A2A endpoint
 
