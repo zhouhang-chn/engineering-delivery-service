@@ -95,7 +95,7 @@ def _serve(port: int) -> ThreadingHTTPServer:
     """Serve a trivial 200-OK HTTP app on localhost:<port>."""
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802 - http.server API
+        def do_GET(self) -> None:
             body = json.dumps(
                 {"service": "fake-deployment", "path": self.path}
             ).encode()

@@ -1,0 +1,26 @@
+[
+  {
+    "action": "status",
+    "status": "running"
+  },
+  {
+    "action": "write_file",
+    "path": "app/main.py",
+    "content": "\"\"\"EDS FastAPI template service with the /hello endpoint added.\"\"\"\n\nfrom fastapi import FastAPI\n\napp = FastAPI(title=\"Template Service\")\n\n\n@app.get(\"/\")\ndef root() -> dict:\n    \"\"\"Service root: identify the service and its status.\"\"\"\n    return {\"service\": \"template\", \"status\": \"ok\"}\n\n\n@app.get(\"/healthz\")\ndef healthz() -> dict:\n    \"\"\"Liveness probe consumed by the EDS deployment health check.\"\"\"\n    return {\"status\": \"ok\"}\n\n\n@app.get(\"/hello\")\ndef hello() -> dict:\n    \"\"\"Requirement: greet the world.\"\"\"\n    return {\"hello\": \"world\"}\n"
+  },
+  {
+    "action": "write_file",
+    "path": "tests/test_hello.py",
+    "content": "\"\"\"Worker-added test for the /hello requirement.\"\"\"\n\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app\n\n\ndef test_hello() -> None:\n    assert TestClient(app).get(\"/hello\").json() == {\"hello\": \"world\"}\n"
+  },
+  {
+    "action": "event",
+    "type": "command",
+    "payload": {"command": "uv run pytest -q", "exit_code": 0}
+  },
+  {
+    "action": "status",
+    "status": "done",
+    "summary": "added GET /hello endpoint with test"
+  }
+]
