@@ -24,9 +24,14 @@ from control.state import append_event, session_scope
 
 WORKER_STATUSES = ("starting", "running", "waiting", "done", "failed")
 DEFAULT_TEST_COMMAND = "uv run pytest -q"
-COMMIT_CONVENTION = (
-    "Commit all your changes on the current branch with a conventional-commit "
-    "message: 'feat: <short summary>' (or 'fix:'/'test:' as appropriate)."
+COMMIT_POLICY = (
+    "Do not commit, stage, or stash your changes, and do not run any other "
+    "command that writes to the .git directory (git commit, git add, git "
+    "stash...) — the workspace sandbox denies those writes by design and "
+    "they will fail with 'Operation not permitted'. Do not diagnose or "
+    "retry such failures. Leave all changes in the working tree; the "
+    "delivery platform records the candidate commit itself after inspecting "
+    "your work."
 )
 
 
@@ -38,7 +43,7 @@ class WorkerTask:
     workspace: Path
     acceptance_criteria: tuple[str, ...] = ()
     test_command: str = DEFAULT_TEST_COMMAND
-    commit_convention: str = COMMIT_CONVENTION
+    commit_policy: str = COMMIT_POLICY
 
 
 @dataclass(frozen=True)
@@ -250,7 +255,7 @@ def build_worker_prompt(task: WorkerTask) -> str:
         "1. Work only inside the repository directory above.\n"
         f"2. Run the test suite with: {task.test_command}\n"
         "3. Add or update tests so the acceptance criteria are covered.\n"
-        f"4. {task.commit_convention}\n"
+        f"4. {task.commit_policy}\n"
         "5. Do not ask questions; make reasonable engineering assumptions.\n\n"
         "When finished, reply with a short engineering summary: what you "
         "built, test results, and any remaining concerns."

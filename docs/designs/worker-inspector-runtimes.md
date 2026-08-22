@@ -16,13 +16,17 @@ Worker Sandbox
 ```
 
 The Worker may: check out and read code, understand the project, design the
-API, modify code, add tests, run pytest, start the service, debug, adjust
-Dockerfile/deployment files, and commit the candidate.
+API, modify code, add tests, run pytest, start the service, debug, and
+adjust Dockerfile/deployment files. It must not write to `.git` (commit,
+stage, stash): the Codex `workspace-write` sandbox denies git-metadata
+writes by design, and the candidate commit is recorded by Delivery Control
+(`commit_candidate`) outside the sandbox — which also keeps the worker from
+planting `.git/hooks` that would execute with EDS's own privileges.
 
 Worker output:
 
 ```
-candidate commit + engineering summary + test evidence + remaining concerns
+working-tree changes + engineering summary + test evidence + remaining concerns
 ```
 
 **"done" semantics**: Worker done means *the candidate is ready for
