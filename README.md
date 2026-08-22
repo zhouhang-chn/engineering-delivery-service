@@ -1,5 +1,7 @@
 # Engineering Delivery Service (EDS)
 
+**English** · [简体中文](README.zh-CN.md)
+
 An autonomous engineering delivery service. It receives an **Engineering
 Work Order** via A2A (not a coding prompt) and drives it autonomously:
 
@@ -146,19 +148,16 @@ docs/         designs/ (design doc set), milestones.md, refer/ (source draft)
 
 ## Status
 
-**v0.1 (single worker end-to-end): COMPLETE — 2026-08-22.** The full
-chain — `eds` CLI → A2A endpoint → ReAct Supervisor (ADK) → durable
-PostgreSQL state with Delivery Control tools → Codex or scripted Worker
-→ pytest evidence → Docker deployment → live `/docs` — runs end to end
-and was dogfooded with recorded acceptance evidence. The delivery loop
-is currently single-worker: the Inspector runtime and the
-clarification/recovery machinery are designed (see above) and land in
-v0.3–v0.6. Quality gate: 52/52 checks (`verify_version.py`).
+| | |
+|---|---|
+| **Version** | v0.1 — Single Worker End-to-End · ✅ COMPLETE (2026-08-22) |
+| **Proven end to end** | `eds` CLI → A2A endpoint → ReAct Supervisor (ADK) → durable PostgreSQL state + Delivery Control tools → Worker (Codex or scripted) → pytest evidence → Docker deployment → live `/docs` — dogfooded with recorded acceptance evidence |
+| **Designed, not yet built** | the Inspector runtime and the clarification/recovery machinery land in v0.3–v0.6 (see [Roadmap](#roadmap)) |
+| **Known caveat** | the real-model live legs (`pytest -m llm`) skip without LLM credentials — every loop was proven with everything real except the model |
 
-One caveat stands (see the retrospective): the real-model live legs
-(`uv run pytest -m llm`) skip without LLM credentials — every loop was
-proven with everything real except the model. Next: v0.2 durable
-delivery control.
+Quality gate: 52/52 checks (`verify_version.py`) · details in the
+[CHANGELOG](CHANGELOG.md) and the
+[v0.1 retrospective](docs/versions/v0.1-single-worker-e2e/retrospect.md).
 
 ## License
 
