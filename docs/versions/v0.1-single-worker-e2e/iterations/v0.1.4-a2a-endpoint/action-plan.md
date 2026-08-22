@@ -5,8 +5,9 @@
 - [ ] T2 — Implement `create_app()` + background supervisor launch; T1 green
 - [ ] T3 — Full-chain e2e test (marked): A2A → Codex → docker → artifacts
       + `/docs` reachable
-- [ ] T4 — Dogfood: run the `/hello` requirement through a real A2A client;
-      record the Swagger-UI verification as evidence
+- [ ] T4 — Dogfood: run the `/hello` requirement through a raw A2A client
+      call (httpx); record the Swagger-UI verification as evidence
+      (the polished CLI arrives in v0.1.5)
 - [ ] T5 — Update CHANGELOG.md + README.md (run/usage instructions)
 - [ ] T6 — Run version gate; fix findings; conduct retrospective and
       finalize version `retrospect.md`; check remaining version-level tasks

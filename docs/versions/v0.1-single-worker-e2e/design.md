@@ -58,7 +58,8 @@ A2A endpoint exist, and remains the developer entrypoint afterwards.
   persists URLs + health, returns the deployment record.
 - **D8 — Config by environment.** `EDS_DATABASE_URL`,
   `EDS_CODEX_APP_SERVER_URL`, `EDS_TEMPLATE_REPO_URL`, `EDS_WORK_DIR`,
-  `EDS_LLM_MODEL`. No config files in v0.1.
+  `EDS_LLM_MODEL`, `EDS_A2A_URL` (for the external CLI client). No config
+  files in v0.1.
 
 ## 3. M1 Tool Subset (implemented signatures)
 
