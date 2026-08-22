@@ -30,6 +30,12 @@ detail lives in each iteration's own `implementation-notes.md`.
   `{"ok": false, "error": ...}` results — ADK 2.x propagates raw tool
   exceptions, which would abort the agent run instead of letting it
   recover.
+- 2026-08-22 (v0.1.4): the A2A endpoint is a thin JSON-RPC adapter over
+  the tools; A2A Task id == work order id and task state is re-derived
+  from durable state on every `tasks/get`. The a2a-sdk server stack
+  (proto-first 1.x) was bypassed — its in-memory TaskStore bookkeeping
+  contradicts "task state derives from PostgreSQL" (details in the
+  iteration notes).
 
 ## Deviations from Design
 

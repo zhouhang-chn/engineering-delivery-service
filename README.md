@@ -63,14 +63,15 @@ The runnable surface grows iteration by iteration; this section is
 rewritten at the end of every iteration to describe the current
 entrypoint.
 
-**Current entrypoint (v0.1.3 — ReAct Supervisor): `uv run python -m
-agent.runner "<requirement>"`.** The delivery order is no longer
-hardcoded: an ADK `LlmAgent` re-reads the durable work-order state
-every turn and decides the next tool call (runtime → checkout → worker
-turn → acceptance tests → candidate commit → deploy →
-`mark_complete`) until the goal is met or the turn budget (25) turns
-the run into a persisted `mark_failed`. Every turn is audited as a
-`supervisor_turn` event.
+**Current entrypoint (v0.1.4 — A2A endpoint): `uv run python -m
+a2a_api.server`.** EDS is one Engineering Delivery Agent: an A2A task
+(`message/send`) carrying a requirement becomes a work order, an ADK
+`LlmAgent` Supervisor drives it autonomously (runtime → checkout →
+worker turn → acceptance tests → candidate commit → deploy), and the
+caller polls `tasks/get` until `completed` — with artifacts
+(repository@commit, deployment URL, `/docs` URL, pytest evidence,
+delivery summary) or `failed` with the persisted reason. Task state
+derives from durable PostgreSQL state, never memory.
 
 Prerequisites: a running Docker daemon (postgres + deployment); an LLM
 credential for the Supervisor (`EDS_LLM_MODEL`, default
@@ -82,20 +83,31 @@ logged in (`codex login`) only for real Worker turns.
 docker compose up -d postgres
 uv run alembic upgrade head
 
-# Supervised delivery (scripted worker — no Codex account needed):
-uv run python -m agent.runner \
-  "Add a GET /hello endpoint returning {'hello': 'world'}" \
-  --scripted examples/scripted_worker_hello.json
-
-# Supervised delivery with a real Codex worker:
-uv run python -m agent.runner \
-  "Add a GET /time endpoint returning the current ISO timestamp"
+# Serve the A2A endpoint (default 127.0.0.1:8080; EDS_A2A_PORT to change):
+uv run python -m a2a_api.server
 ```
 
-The command prints the `docs url` — open it in a browser, "Try it out",
-and verify the delivered requirement — plus the turn count and final
-status. Inspect any work order's snapshot afterwards from a fresh
-process (every decision, evidence item and deployment fact is durable):
+Talk to it with any A2A-compatible client — raw JSON-RPC over HTTP:
+
+```bash
+# Submit a delivery task:
+curl -s http://127.0.0.1:8080/ -H 'Content-Type: application/json' -d '{
+  "jsonrpc": "2.0", "id": 1, "method": "message/send",
+  "params": {"message": {"messageId": "m1", "role": "user",
+    "parts": [{"kind": "text",
+      "text": "Add a GET /hello endpoint returning {\"hello\": \"world\"}"}]}}}'
+
+# Poll it (use the task id from the response):
+curl -s http://127.0.0.1:8080/ -H 'Content-Type: application/json' -d '{
+  "jsonrpc": "2.0", "id": 2, "method": "tasks/get",
+  "params": {"id": "wo-<id>"}}'
+```
+
+A `completed` task's artifacts include the `docs_url` — open it in a
+browser, "Try it out", and verify the delivered requirement. The agent
+card is at `/.well-known/agent-card.json`; the endpoint also serves its
+own `/docs`. Inspect any work order's durable snapshot from a fresh
+process:
 
 ```bash
 uv run python -c "from tools.work_order import get_current_state; \
@@ -103,15 +115,18 @@ import sys, json; print(json.dumps(get_current_state(sys.argv[1]), indent=2))" \
   wo-<id>
 ```
 
-Without an LLM credential, the deterministic runner from v0.1.2 still
-executes the same tool chain end to end:
+Without a long-running server, the same supervised delivery runs
+one-shot from the CLI (`python -m agent.runner "<requirement>"
+--scripted examples/scripted_worker_hello.json` — needs the same LLM
+credential), and the deterministic no-LLM runner remains for
+development:
 
 ```bash
 uv run python runner.py "Add a GET /hello endpoint returning hello world" \
   --scripted examples/scripted_worker_hello.json
 ```
 
-Useful flags: `--port`, `--work-dir`, `--turn-budget`,
+Useful launcher flags: `--port`, `--work-dir`, `--turn-budget`,
 `--timeout` (`uv run python -m agent.runner --help` for all).
 
 | Variable | Default | Purpose |
@@ -121,6 +136,7 @@ Useful flags: `--port`, `--work-dir`, `--turn-budget`,
 | `EDS_TEMPLATE_REPO_URL` | auto-published `template/fastapi-service` | baseline repository to clone |
 | `EDS_CODEX_APP_SERVER_URL` | `codex app-server` | Codex App Server command |
 | `EDS_LLM_MODEL` | `gemini-2.5-flash` | Supervisor model (credentials via the ADK provider env, e.g. `GOOGLE_API_KEY`) |
+| `EDS_A2A_HOST` / `EDS_A2A_PORT` | `127.0.0.1` / `8080` | A2A endpoint bind address |
 
 Default test runs skip suites that need external services; opt in with
 `uv run pytest -m docker`, `uv run pytest -m codex` and
@@ -156,7 +172,9 @@ Codex worker; **v0.1.2 durable state & tools** — work orders, audit
 events, evidence and deployment facts live in PostgreSQL (alembic
 migration 0001), the M1 Delivery Control tools are real, the worker
 registry is durable, and the runner drives the flow through tools;
-**v0.1.3 ReAct Supervisor** — an ADK `LlmAgent` now decides the
-delivery order autonomously over the same tools, bounded by a turn
-budget, every turn audited (`supervisor_turn` events). Next up: A2A
-endpoint (v0.1.4), `eds` CLI (v0.1.5).
+**v0.1.3 ReAct Supervisor** — an ADK `LlmAgent` decides the delivery
+order autonomously over the same tools, bounded by a turn budget, every
+turn audited; **v0.1.4 A2A endpoint** — EDS is callable as one
+Engineering Delivery Agent over the A2A JSON-RPC surface (`message/send`
+→ `tasks/get` → `completed` with artifacts), dogfooded end to end with
+recorded acceptance evidence. Next up: `eds` CLI (v0.1.5).
