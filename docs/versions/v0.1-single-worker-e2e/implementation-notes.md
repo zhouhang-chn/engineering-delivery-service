@@ -22,6 +22,14 @@ detail lives in each iteration's own `implementation-notes.md`.
 - 2026-08-22 (v0.1.2): worker registry is durable (`work_orders`
   columns + `worker.*` events); an in-memory twin keeps driver unit
   tests hermetic behind the same interface.
+- 2026-08-22 (v0.1.3): supervisor turn = one ADK run (multi-tool ReAct
+  chain allowed); the outer loop re-renders context from durable state,
+  audits one `supervisor_turn` event per turn, and a budget of 25 turns
+  bounds runaway loops into `mark_failed`.
+- 2026-08-22 (v0.1.3): agent-facing tool wrappers convert exceptions to
+  `{"ok": false, "error": ...}` results — ADK 2.x propagates raw tool
+  exceptions, which would abort the agent run instead of letting it
+  recover.
 
 ## Deviations from Design
 
