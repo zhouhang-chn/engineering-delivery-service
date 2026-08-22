@@ -12,6 +12,9 @@ detail lives in each iteration's own `implementation-notes.md`.
   `EDS_WORK_DIR`; container-backed isolation is deferred (design D1).
 - 2026-08-22 (planning): worker turns run asynchronously and tools poll
   status — the Supervisor never blocks in one tool call (design D2).
+- 2026-08-22 (planning): user test surface is a CLI (an external A2A
+  client), not a web UI — dogfooding doubles as a contract test, and the
+  no-frontend-in-MVP principle keeps EDS's own UI out of scope (v0.1.5).
 
 ## Deviations from Design
 

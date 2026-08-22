@@ -9,5 +9,6 @@ tracks version-level tasks only.
 - [ ] T3 — Complete **v0.1.2-durable-state-tools**
 - [ ] T4 — Complete **v0.1.3-react-supervisor**
 - [ ] T5 — Complete **v0.1.4-a2a-endpoint** (includes full-chain e2e + dogfooding)
-- [ ] T6 — Conduct retrospective, finalize `retrospect.md`, update `CHANGELOG.md`/`README.md`
-- [ ] T7 — Mark version COMPLETE — run `uv run python .agents/scripts/verify_version.py v0.1-single-worker-e2e`, update `docs/milestones.md` to COMPLETE with date, merge version branch via PR
+- [ ] T6 — Complete **v0.1.5-eds-cli** (user test loop: serve / submit / status --watch / open)
+- [ ] T7 — Conduct retrospective, finalize `retrospect.md`, update `CHANGELOG.md`/`README.md`
+- [ ] T8 — Mark version COMPLETE — run `uv run python .agents/scripts/verify_version.py v0.1-single-worker-e2e`, update `docs/milestones.md` to COMPLETE with date, merge version branch via PR

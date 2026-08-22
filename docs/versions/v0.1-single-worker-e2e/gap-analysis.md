@@ -41,6 +41,7 @@ repository exists, no Codex integration, no alembic setup, no runner.
 | ReAct Supervisor | ADK agent driving the tools autonomously | stub |
 | A2A endpoint | task in → artifacts out | stub |
 | CLI runner | dev entrypoint before Supervisor exists | missing |
+| User test client (`eds` CLI) | serve / submit / status --watch / open as an external caller | missing |
 
 ## 4. Risks & Mitigations
 
