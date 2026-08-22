@@ -14,9 +14,14 @@ uv run pytest
 uv run ruff check .
 ```
 
-Configuration is environment-based (no config files): `.env.example`
-lists the variables — export the ones you need (or
-`set -a; source .env; set +a` if you keep them in a file).
+Configuration lives in `.env`: copy the template and fill in real
+values — `cp .env.example .env`. The application loads the file itself
+at every entrypoint (`eds` CLI, `python -m a2a_api.server`,
+`python -m agent.runner`, `alembic`), model credentials included —
+`GOOGLE_API_KEY` in `.env` is what enables the ADK Supervisor model —
+so nothing needs to be exported in the shell. Exported environment
+variables still win over the file when both are set. Real secrets go
+only in gitignored `.env`; `.env.example` carries just the names.
 
 ## Running EDS
 

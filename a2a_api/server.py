@@ -300,6 +300,9 @@ def main() -> None:
     """Serve the A2A endpoint (uvicorn)."""
     import uvicorn
 
+    from control.env import load_env
+
+    load_env()
     host = os.environ.get("EDS_A2A_HOST", "127.0.0.1")
     port = int(os.environ.get("EDS_A2A_PORT", "8080"))
     uvicorn.run(create_app(), host=host, port=port)

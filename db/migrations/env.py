@@ -13,8 +13,11 @@ if str(ROOT) not in sys.path:
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from control.env import load_env
 from control.state import DEFAULT_DATABASE_URL
 from db.models import Base
+
+load_env()
 
 config = context.config
 
