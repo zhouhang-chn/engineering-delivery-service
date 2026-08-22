@@ -49,6 +49,9 @@ milestone plan in `docs/milestones.md`.
   diagram (`docs/eds-arch.png`), and roadmap up front; setup, run
   instructions, configuration, and development workflow moved to the new
   `developer-guide.md`.
+- README Status section reformatted as a scannable fact table; added
+  `README.zh-CN.md` (full Chinese translation) with a language switcher
+  linking both READMEs.
 
 ### v0.1 — Single Worker End-to-End (M1)
 
