@@ -237,6 +237,13 @@ def check_implementation_notes(version_dir: Path) -> None:
                                 for p in PLACEHOLDER_PATTERNS
                             )
                             check(f"    {iter_name}/{req_file} filled", not has_placeholder)
+                        if req_file == "action-plan.md" and rf_path.exists():
+                            iter_unchecked = re.findall(r"- \[ \]", rf_path.read_text(encoding="utf-8"))
+                            check(
+                                f"    {iter_name} action-plan tasks all checked",
+                                not iter_unchecked,
+                                f"{len(iter_unchecked)} unchecked task(s) remain",
+                            )
 
 
 def check_no_todos() -> None:

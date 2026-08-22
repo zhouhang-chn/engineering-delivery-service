@@ -13,11 +13,12 @@
       (`human_acceptance_check`, work order wo-c5392084ce82) — the
       polished CLI arrives in v0.1.5
 - [x] T5 — Update CHANGELOG.md + README.md (run/usage instructions)
-- [ ] T6 — Run version gate; fix findings; conduct retrospective and
+- [x] T6 — Run version gate; fix findings; conduct retrospective and
       finalize version `retrospect.md`; check remaining version-level tasks
-      (executes after v0.1.5 — the gate requires all version tasks closed)
-- [ ] T7 — Merge version branch via PR; update `docs/milestones.md` to
-      COMPLETE with date (executes after v0.1.5)
+      (executed after v0.1.5 with the version close-out)
+- [x] T7 — Merge version branch via PR; update `docs/milestones.md` to
+      COMPLETE with date (PR from the stacked v0.1.5 branch carries the
+      whole version; milestones updated 2026-08-22)
 
 Acceptance: M1 exit criteria demonstrated end-to-end; gate passes;
 retrospective actions executed.
