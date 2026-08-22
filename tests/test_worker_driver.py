@@ -9,8 +9,8 @@ import pytest
 
 from codex import worker_driver
 from codex.worker_driver import (
+    InMemoryWorkerRegistry,
     ScriptedWorker,
-    WorkerRegistry,
     WorkerTask,
     build_worker_prompt,
     get_worker_status,
@@ -24,7 +24,7 @@ def make_task(tmp_path: Path) -> WorkerTask:
 
 
 def test_registry_lifecycle() -> None:
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     registry.init("wo-1")
     assert registry.get("wo-1").status == "starting"
 
@@ -40,11 +40,11 @@ def test_registry_lifecycle() -> None:
 
 
 def test_registry_unknown_work_order() -> None:
-    assert WorkerRegistry().get("missing").status == "unknown"
+    assert InMemoryWorkerRegistry().get("missing").status == "unknown"
 
 
 def test_registry_rejects_unknown_status() -> None:
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     with pytest.raises(ValueError, match="unknown worker status"):
         registry.set_status("wo-1", "vibing")
 
@@ -65,7 +65,7 @@ def test_prompt_embeds_task_contract(tmp_path: Path) -> None:
 
 def test_scripted_worker_writes_files_and_finishes(tmp_path: Path) -> None:
     task = make_task(tmp_path)
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     registry.init("wo-1")
     script = [
         {"action": "status", "status": "running"},
@@ -83,7 +83,7 @@ def test_scripted_worker_writes_files_and_finishes(tmp_path: Path) -> None:
 
 
 def test_scripted_worker_fail_step(tmp_path: Path) -> None:
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     registry.init("wo-1")
     script = [{"action": "fail", "error": "boom"}]
     ScriptedWorker(script).execute("wo-1", make_task(tmp_path), registry)
@@ -93,7 +93,7 @@ def test_scripted_worker_fail_step(tmp_path: Path) -> None:
 
 
 def test_scripted_worker_rejects_unknown_action(tmp_path: Path) -> None:
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     registry.init("wo-1")
     with pytest.raises(ValueError, match="unknown script action"):
         ScriptedWorker([{"action": "teleport"}]).execute(
@@ -102,7 +102,7 @@ def test_scripted_worker_rejects_unknown_action(tmp_path: Path) -> None:
 
 
 def test_run_worker_task_runs_in_background(tmp_path: Path) -> None:
-    registry = WorkerRegistry()
+    registry = InMemoryWorkerRegistry()
     script = [
         {"action": "write_file", "path": "done.marker", "content": "ok"},
         {"action": "sleep", "seconds": 0.05},
@@ -123,7 +123,10 @@ def test_run_worker_task_runs_in_background(tmp_path: Path) -> None:
     assert (tmp_path / "done.marker").exists()
 
 
-def test_get_worker_status_uses_default_registry(tmp_path: Path) -> None:
+def test_default_registry_is_durable(tmp_path: Path, durable_db) -> None:
+    """The module default now routes through PostgreSQL (v0.1.2)."""
+    from tools.work_order import get_work_order
+
     run_worker_task(
         "wo-default",
         make_task(tmp_path),
@@ -135,6 +138,7 @@ def test_get_worker_status_uses_default_registry(tmp_path: Path) -> None:
             break
         time.sleep(0.02)
     assert get_worker_status("wo-default").status == "done"
+    assert get_work_order("wo-default")["worker_status"] == "done"
 
 
 def test_map_item_shapes() -> None:

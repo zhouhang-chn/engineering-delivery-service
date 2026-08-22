@@ -15,15 +15,27 @@ detail lives in each iteration's own `implementation-notes.md`.
 - 2026-08-22 (planning): user test surface is a CLI (an external A2A
   client), not a web UI — dogfooding doubles as a contract test, and the
   no-frontend-in-MVP principle keeps EDS's own UI out of scope (v0.1.5).
+- 2026-08-22 (v0.1.2): one short DB session per tool call; a mutation
+  and its audit Event commit atomically. `update_work_order` doubles as
+  the creator (upsert). Audit `Event.id` is an autoincrement integer so
+  the append order is stable across engines.
+- 2026-08-22 (v0.1.2): worker registry is durable (`work_orders`
+  columns + `worker.*` events); an in-memory twin keeps driver unit
+  tests hermetic behind the same interface.
 
 ## Deviations from Design
 
-None yet.
+None at the version level so far; deviations inside an iteration are
+recorded in that iteration's own implementation-notes.md.
 
 ## Bugs Encountered
 
-None yet.
+None at the version level so far; bugs found and fixed inside an
+iteration are recorded in that iteration's implementation-notes.md.
 
 ## Lessons Learned
 
-None yet.
+- 2026-08-22 (v0.1.2): audit rows referencing rows created in the same
+  transaction need an explicit parent flush — without an ORM
+  relationship SQLAlchemy cannot order the inserts (FK violation
+  otherwise).

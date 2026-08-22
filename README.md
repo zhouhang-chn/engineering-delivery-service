@@ -63,14 +63,21 @@ The runnable surface grows iteration by iteration; this section is
 rewritten at the end of every iteration to describe the current
 entrypoint.
 
-**Current entrypoint (v0.1.1 — worker engine): the CLI runner.**
-Requirement in → sandbox → worker turn → pytest evidence → candidate
-commit → docker deploy → live `/docs` URL out.
+**Current entrypoint (v0.1.2 — durable state & tools): the CLI runner
+over PostgreSQL.** Requirement in → durable work order → sandbox →
+worker turn → pytest evidence → candidate commit → docker deploy →
+live `/docs` URL out. Every step is recorded in PostgreSQL (audit
+events, evidence, deployment facts) and can be re-read after the
+process exits.
 
-Prerequisites: a running Docker daemon; the `codex` CLI logged in
-(`codex login`) only for real Worker turns.
+Prerequisites: a running Docker daemon (postgres + deployment); the
+`codex` CLI logged in (`codex login`) only for real Worker turns.
 
 ```bash
+# One-time durable state:
+docker compose up -d postgres
+uv run alembic upgrade head
+
 # Scripted worker — no Codex account needed (demo path):
 uv run python runner.py \
   "Add a GET /hello endpoint returning {'hello': 'world'}" \
@@ -81,13 +88,23 @@ uv run python runner.py \
   "Add a GET /time endpoint returning the current ISO timestamp"
 ```
 
-The runner prints `docs url : http://localhost:<port>/docs` — open it in
-a browser, "Try it out", and verify the delivered requirement. Useful
-flags: `--port`, `--work-dir`, `--timeout` (`uv run python runner.py
---help` for all).
+The runner prints the `docs url` — open it in a browser, "Try it out",
+and verify the delivered requirement — plus a durable summary line
+(`overall_status=complete, 14 events, 2 evidence`). Inspect any work
+order's snapshot afterwards from a fresh process:
+
+```bash
+uv run python -c "from tools.work_order import get_current_state; \
+import sys, json; print(json.dumps(get_current_state(sys.argv[1]), indent=2))" \
+  wo-<id>
+```
+
+Useful flags: `--port`, `--work-dir`, `--timeout` (`uv run python
+runner.py --help` for all).
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `EDS_DATABASE_URL` | `postgresql+psycopg://eds:eds@localhost:5432/eds` | durable Work Order state |
 | `EDS_WORK_DIR` | `.eds/work` | sandboxes + published template repo |
 | `EDS_TEMPLATE_REPO_URL` | auto-published `template/fastapi-service` | baseline repository to clone |
 | `EDS_CODEX_APP_SERVER_URL` | `codex app-server` | Codex App Server command |
@@ -121,5 +138,9 @@ git config core.hooksPath .agents/scripts/githooks
 v0.1 (single worker end-to-end) in progress. Delivered: **v0.1.1 worker
 engine** — the CLI runner turns a requirement into a deployed FastAPI
 service with pytest evidence and a live `/docs`, via a scripted or real
-Codex worker. Next up: durable state (v0.1.2), ReAct Supervisor
-(v0.1.3), A2A endpoint (v0.1.4), `eds` CLI (v0.1.5).
+Codex worker; **v0.1.2 durable state & tools** — work orders, audit
+events, evidence and deployment facts live in PostgreSQL (alembic
+migration 0001), the M1 Delivery Control tools are real, the worker
+registry is durable, and the runner drives the flow through tools.
+Next up: ReAct Supervisor (v0.1.3), A2A endpoint (v0.1.4), `eds` CLI
+(v0.1.5).

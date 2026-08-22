@@ -91,9 +91,12 @@ def test_pytest_summary_parses_counts_behind_warning_noise() -> None:
     assert empty["passed"] == 0 and empty["summary_line"] == ""
 
 
-def test_runner_scripted_loop_produces_deployed_docs_url(tmp_path: Path) -> None:
+def test_runner_scripted_loop_produces_deployed_docs_url(
+    tmp_path: Path, durable_db, db_engine
+) -> None:
     from codex.worker_driver import ScriptedWorker
     from runner import run_delivery
+    from tools.work_order import get_current_state
 
     template = make_template_repo(tmp_path / "template-src")
     fake_docker = FakeDockerClient()
@@ -106,6 +109,7 @@ def test_runner_scripted_loop_produces_deployed_docs_url(tmp_path: Path) -> None
         repo_url=str(template),
         work_dir=tmp_path / "work",
         test_command=f"{sys.executable} -m pytest -q",
+        session_factory=durable_db,
     )
 
     # worker reached done and its summary was captured
@@ -129,3 +133,36 @@ def test_runner_scripted_loop_produces_deployed_docs_url(tmp_path: Path) -> None
     assert result.deployment_status == "deployed"
     assert result.deployment_health == "healthy"
     assert result.docs_url == f"http://localhost:{result.port}/docs"
+
+    # v0.1.2: the whole flow is durable — same facts via get_current_state
+    state = get_current_state(result.work_order_id)
+    assert state["overall_status"] == "complete"
+    assert state["worker"]["status"] == "done"
+    assert state["worker"]["summary"] == "added GET /hello endpoint"
+    assert state["worker"]["candidate_commit"] == result.candidate_commit
+    assert state["deployment"]["docs_url"] == result.docs_url
+    assert state["deployment"]["health"] == "healthy"
+    assert state["requirement"]["acceptance_criteria"] == [
+        "GET /hello returns 200 with {'hello': 'world'}"
+    ]
+
+    from tests.helpers.db import evidence_kinds
+
+    kinds = evidence_kinds(durable_db, result.work_order_id)
+    assert "pytest_run" in kinds and "deployment_check" in kinds
+
+    from tests.helpers.db import event_types
+
+    flow_types = event_types(durable_db, result.work_order_id)
+    for expected in (
+        "work_order.created",
+        "runtime.worker_created",
+        "deployment.deployed",
+        "work_order.marked_complete",
+    ):
+        assert expected in flow_types
+
+    # restart-inspectable: a fresh process would re-read the same snapshot
+    before = get_current_state(result.work_order_id)
+    db_engine.dispose()
+    assert get_current_state(result.work_order_id) == before
