@@ -28,3 +28,8 @@ target-version = "py311"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not docker and not codex'"
+markers = [
+    "docker: requires a running Docker daemon (run explicitly with -m docker)",
+    "codex: requires the codex CLI with auth quota (run explicitly with -m codex)",
+]
