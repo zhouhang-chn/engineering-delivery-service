@@ -57,6 +57,44 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Running EDS
+
+The runnable surface grows iteration by iteration; this section is
+rewritten at the end of every iteration to describe the current
+entrypoint.
+
+**Current entrypoint (v0.1.1 — worker engine): the CLI runner.**
+Requirement in → sandbox → worker turn → pytest evidence → candidate
+commit → docker deploy → live `/docs` URL out.
+
+Prerequisites: a running Docker daemon; the `codex` CLI logged in
+(`codex login`) only for real Worker turns.
+
+```bash
+# Scripted worker — no Codex account needed (demo path):
+uv run python runner.py \
+  "Add a GET /hello endpoint returning {'hello': 'world'}" \
+  --scripted examples/scripted_worker_hello.json
+
+# Real Codex worker:
+uv run python runner.py \
+  "Add a GET /time endpoint returning the current ISO timestamp"
+```
+
+The runner prints `docs url : http://localhost:<port>/docs` — open it in
+a browser, "Try it out", and verify the delivered requirement. Useful
+flags: `--port`, `--work-dir`, `--timeout` (`uv run python runner.py
+--help` for all).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `EDS_WORK_DIR` | `.eds/work` | sandboxes + published template repo |
+| `EDS_TEMPLATE_REPO_URL` | auto-published `template/fastapi-service` | baseline repository to clone |
+| `EDS_CODEX_APP_SERVER_URL` | `codex app-server` | Codex App Server command |
+
+Default test runs skip suites that need external services; opt in with
+`uv run pytest -m docker` and `uv run pytest -m codex`.
+
 ## Development workflow
 
 Development follows the version-driven workflow in
@@ -80,4 +118,8 @@ git config core.hooksPath .agents/scripts/githooks
 
 ## Status
 
-Skeleton scaffold — module stubs only. See architecture doc for details.
+v0.1 (single worker end-to-end) in progress. Delivered: **v0.1.1 worker
+engine** — the CLI runner turns a requirement into a deployed FastAPI
+service with pytest evidence and a live `/docs`, via a scripted or real
+Codex worker. Next up: durable state (v0.1.2), ReAct Supervisor
+(v0.1.3), A2A endpoint (v0.1.4), `eds` CLI (v0.1.5).
