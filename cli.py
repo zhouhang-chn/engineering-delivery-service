@@ -1,9 +1,9 @@
 """`eds` — the EDS command line: the reference external caller.
 
 Four commands over the A2A protocol only — serve, submit, status
-(--watch), open. This module never imports EDS internals except to
-start the server (`serve`); using the CLI is itself a contract test of
-the endpoint.
+(--watch), open. This module never imports EDS internals except the
+`.env` bootstrap and starting the server (`serve`); using the CLI is
+itself a contract test of the endpoint.
 
 Usage:
   uv run eds serve [--host 127.0.0.1] [--port 8080]
@@ -200,6 +200,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint; returns the scripting exit code."""
+    from control.env import load_env
+
+    load_env()
     args = build_parser().parse_args(argv)
     handlers = {
         "serve": cmd_serve,
