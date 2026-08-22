@@ -22,7 +22,8 @@ against acceptance criteria and returns ACCEPT / REJECT. The Supervisor
 owns the loop. There is deliberately no deterministic workflow layer.
 
 ```
-agent/        ReAct Supervisor + prompts
+cli.py        `eds` CLI — reference external caller (serve/submit/status/open)
+agent/        ReAct Supervisor + prompts + deterministic demo backend
 a2a_api/      A2A endpoint (Task ≈ Engineering Work Order)
 tools/        Delivery Control tools exposed to the Supervisor
 control/      Deterministic state / git / policy primitives
@@ -51,11 +52,14 @@ Requires Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-cp .env.example .env
 docker compose up -d postgres   # durable state
 uv run pytest
 uv run ruff check .
 ```
+
+Configuration is environment-based (no config files): `.env.example`
+lists the variables — export the ones you need (or
+`set -a; source .env; set +a` if you keep them in a file).
 
 ## Running EDS
 
@@ -155,19 +159,27 @@ git config core.hooksPath .agents/scripts/githooks
 
 ## Status
 
-v0.1 (single worker end-to-end) in progress. Delivered: **v0.1.1 worker
-engine** — the CLI runner turns a requirement into a deployed FastAPI
-service with pytest evidence and a live `/docs`, via a scripted or real
-Codex worker; **v0.1.2 durable state & tools** — work orders, audit
-events, evidence and deployment facts live in PostgreSQL (alembic
-migration 0001), the M1 Delivery Control tools are real, the worker
-registry is durable, and the runner drives the flow through tools;
-**v0.1.3 ReAct Supervisor** — an ADK `LlmAgent` decides the delivery
-order autonomously over the same tools, bounded by a turn budget, every
-turn audited; **v0.1.4 A2A endpoint** — EDS is callable as one
-Engineering Delivery Agent over the A2A JSON-RPC surface (`message/send`
-→ `tasks/get` → `completed` with artifacts), dogfooded end to end with
-recorded acceptance evidence; **v0.1.5 `eds` CLI** — the reference
-external caller: serve / submit / status --watch / open, packaged as a
-console script, plus a credential-free deterministic demo backend.
-v0.1's iterations are complete.
+**v0.1 (single worker end-to-end): COMPLETE — 2026-08-22.** Delivered:
+**v0.1.1 worker engine** — the CLI runner turns a requirement into a
+deployed FastAPI service with pytest evidence and a live `/docs`, via a
+scripted or real Codex worker; **v0.1.2 durable state & tools** — work
+orders, audit events, evidence and deployment facts live in PostgreSQL
+(alembic migration 0001), the M1 Delivery Control tools are real, the
+worker registry is durable, and the runner drives the flow through
+tools; **v0.1.3 ReAct Supervisor** — an ADK `LlmAgent` decides the
+delivery order autonomously over the same tools, bounded by a turn
+budget, every turn audited; **v0.1.4 A2A endpoint** — EDS is callable
+as one Engineering Delivery Agent over the A2A JSON-RPC surface
+(`message/send` → `tasks/get` → `completed` with artifacts), dogfooded
+end to end with recorded acceptance evidence; **v0.1.5 `eds` CLI** —
+the reference external caller: serve / submit / status --watch / open,
+packaged as a console script, plus a credential-free deterministic demo
+backend. Quality gate: 52/52 checks (`verify_version.py`); milestone
+retrospective in
+[docs/versions/v0.1-single-worker-e2e/retrospect.md](docs/versions/v0.1-single-worker-e2e/retrospect.md).
+
+One caveat stands (see the retrospective): the real-model live legs
+(`uv run pytest -m llm`) skip without LLM credentials — every loop was
+proven with everything real except the model. Next: v0.2 durable
+delivery control (restart recovery, delivery queueing, real-model
+prompt tuning).
