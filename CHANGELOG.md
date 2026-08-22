@@ -6,6 +6,13 @@ milestone plan in `docs/milestones.md`.
 
 ## [Unreleased]
 
+### Docs
+
+- README restructured for public release: design principles, architecture
+  diagram (`docs/eds-arch.png`), and roadmap up front; setup, run
+  instructions, configuration, and development workflow moved to the new
+  `developer-guide.md`.
+
 ### v0.1 — Single Worker End-to-End (M1)
 
 #### v0.1.5 — EDS CLI
