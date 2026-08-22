@@ -63,35 +63,39 @@ The runnable surface grows iteration by iteration; this section is
 rewritten at the end of every iteration to describe the current
 entrypoint.
 
-**Current entrypoint (v0.1.2 — durable state & tools): the CLI runner
-over PostgreSQL.** Requirement in → durable work order → sandbox →
-worker turn → pytest evidence → candidate commit → docker deploy →
-live `/docs` URL out. Every step is recorded in PostgreSQL (audit
-events, evidence, deployment facts) and can be re-read after the
-process exits.
+**Current entrypoint (v0.1.3 — ReAct Supervisor): `uv run python -m
+agent.runner "<requirement>"`.** The delivery order is no longer
+hardcoded: an ADK `LlmAgent` re-reads the durable work-order state
+every turn and decides the next tool call (runtime → checkout → worker
+turn → acceptance tests → candidate commit → deploy →
+`mark_complete`) until the goal is met or the turn budget (25) turns
+the run into a persisted `mark_failed`. Every turn is audited as a
+`supervisor_turn` event.
 
-Prerequisites: a running Docker daemon (postgres + deployment); the
-`codex` CLI logged in (`codex login`) only for real Worker turns.
+Prerequisites: a running Docker daemon (postgres + deployment); an LLM
+credential for the Supervisor (`EDS_LLM_MODEL`, default
+`gemini-2.5-flash`, plus e.g. `GOOGLE_API_KEY`); the `codex` CLI
+logged in (`codex login`) only for real Worker turns.
 
 ```bash
 # One-time durable state:
 docker compose up -d postgres
 uv run alembic upgrade head
 
-# Scripted worker — no Codex account needed (demo path):
-uv run python runner.py \
+# Supervised delivery (scripted worker — no Codex account needed):
+uv run python -m agent.runner \
   "Add a GET /hello endpoint returning {'hello': 'world'}" \
   --scripted examples/scripted_worker_hello.json
 
-# Real Codex worker:
-uv run python runner.py \
+# Supervised delivery with a real Codex worker:
+uv run python -m agent.runner \
   "Add a GET /time endpoint returning the current ISO timestamp"
 ```
 
-The runner prints the `docs url` — open it in a browser, "Try it out",
-and verify the delivered requirement — plus a durable summary line
-(`overall_status=complete, 14 events, 2 evidence`). Inspect any work
-order's snapshot afterwards from a fresh process:
+The command prints the `docs url` — open it in a browser, "Try it out",
+and verify the delivered requirement — plus the turn count and final
+status. Inspect any work order's snapshot afterwards from a fresh
+process (every decision, evidence item and deployment fact is durable):
 
 ```bash
 uv run python -c "from tools.work_order import get_current_state; \
@@ -99,8 +103,16 @@ import sys, json; print(json.dumps(get_current_state(sys.argv[1]), indent=2))" \
   wo-<id>
 ```
 
-Useful flags: `--port`, `--work-dir`, `--timeout` (`uv run python
-runner.py --help` for all).
+Without an LLM credential, the deterministic runner from v0.1.2 still
+executes the same tool chain end to end:
+
+```bash
+uv run python runner.py "Add a GET /hello endpoint returning hello world" \
+  --scripted examples/scripted_worker_hello.json
+```
+
+Useful flags: `--port`, `--work-dir`, `--turn-budget`,
+`--timeout` (`uv run python -m agent.runner --help` for all).
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -108,9 +120,11 @@ runner.py --help` for all).
 | `EDS_WORK_DIR` | `.eds/work` | sandboxes + published template repo |
 | `EDS_TEMPLATE_REPO_URL` | auto-published `template/fastapi-service` | baseline repository to clone |
 | `EDS_CODEX_APP_SERVER_URL` | `codex app-server` | Codex App Server command |
+| `EDS_LLM_MODEL` | `gemini-2.5-flash` | Supervisor model (credentials via the ADK provider env, e.g. `GOOGLE_API_KEY`) |
 
 Default test runs skip suites that need external services; opt in with
-`uv run pytest -m docker` and `uv run pytest -m codex`.
+`uv run pytest -m docker`, `uv run pytest -m codex` and
+`uv run pytest -m llm`.
 
 ## Development workflow
 
@@ -141,6 +155,8 @@ service with pytest evidence and a live `/docs`, via a scripted or real
 Codex worker; **v0.1.2 durable state & tools** — work orders, audit
 events, evidence and deployment facts live in PostgreSQL (alembic
 migration 0001), the M1 Delivery Control tools are real, the worker
-registry is durable, and the runner drives the flow through tools.
-Next up: ReAct Supervisor (v0.1.3), A2A endpoint (v0.1.4), `eds` CLI
-(v0.1.5).
+registry is durable, and the runner drives the flow through tools;
+**v0.1.3 ReAct Supervisor** — an ADK `LlmAgent` now decides the
+delivery order autonomously over the same tools, bounded by a turn
+budget, every turn audited (`supervisor_turn` events). Next up: A2A
+endpoint (v0.1.4), `eds` CLI (v0.1.5).
