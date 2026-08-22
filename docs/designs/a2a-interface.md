@@ -69,3 +69,5 @@ delivery summary           what was built, changed, and how verified
 - Authentication/authorization between caller and EDS (trusted network).
 - Push notifications/webhooks (callers poll task state).
 - Multi-project routing (single template repository until v0.5).
+- A graphical EDS console — the reference external caller is the `eds` CLI
+  (v0.1.5); a web UI would be post-M1 scope.

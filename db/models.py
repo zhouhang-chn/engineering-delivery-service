@@ -41,6 +41,8 @@ class WorkOrder(Base):
     worker_runtime_id: Mapped[str | None] = mapped_column(String(64))
     worker_thread_id: Mapped[str | None] = mapped_column(String(64))
     worker_status: Mapped[str | None] = mapped_column(String(32))
+    worker_summary: Mapped[str | None] = mapped_column(Text)
+    worker_error: Mapped[str | None] = mapped_column(Text)
     candidate_commit: Mapped[str | None] = mapped_column(String(64))
 
     # inspector
@@ -84,11 +86,15 @@ class Evidence(Base):
 
 
 class Event(Base):
-    """Append-only audit log (doc section 3, wired into tools in M2)."""
+    """Append-only audit log; every state-changing tool call adds one row.
+
+    The autoincrement integer id doubles as the global append sequence —
+    ``created_at`` alone cannot order rows committed in one transaction.
+    """
 
     __tablename__ = "events"
 
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     work_order_id: Mapped[str] = mapped_column(ForeignKey("work_orders.id"), index=True)
     type: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict | None] = mapped_column(JSON)

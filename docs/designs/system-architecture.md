@@ -50,6 +50,21 @@ goal state.
    later versions add autonomy and reliability, never a partial pipeline.
 7. **MVP scope discipline.** FastAPI only, single repository, until the
    milestone plan explicitly lifts the constraint.
+8. **Protocol adapters derive state from the durable store.** External
+   surfaces (A2A endpoint, CLI) re-derive every response from
+   PostgreSQL via tools; they never cache task state in memory. Added
+   in v0.1 (retrospective): the a2a-sdk server stack was bypassed
+   because its in-memory TaskStore contradicts this rule.
+9. **Agent-facing tools fail with structured results.** Tool wrappers
+   exposed to the Supervisor convert exceptions to
+   `{"ok": false, "error": ...}` — ADK propagates raw exceptions, which
+   would abort the agent run instead of letting it recover. Added in
+   v0.1 (retrospective).
+10. **Model loops are bounded at every layer.** The supervise loop
+   bounds outer turns; any custom `BaseLlm` (deterministic backends,
+   test doubles) must additionally bound its own steps — ADK's internal
+   loop only ends when the model emits a final text response. Added in
+   v0.1 (retrospective).
 
 ## 3. Component Model
 
