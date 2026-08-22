@@ -271,6 +271,33 @@ def test_supervisor_marks_failed_on_budget_exhaustion(tmp_path: Path, durable_db
     assert "work_order.marked_failed" in types_
 
 
+def test_budget_exhaustion_reason_reports_last_turn_error(
+    tmp_path: Path, durable_db
+) -> None:
+    """Every model call blowing up must be named in the failure reason.
+
+    A quota outage (429 on every turn) otherwise surfaces as an opaque
+    "turn budget exhausted" with the real cause buried in supervisor_turn
+    events.
+    """
+    from agent.runner import supervise
+    from agent.supervisor import reset_supervisor_config
+    from tests.helpers.db import new_id
+
+    work_order_id = new_id()
+    _setup_work_order(durable_db, tmp_path, work_order_id)
+    _configure(durable_db, tmp_path, FakeDockerClient(), worker=None)
+    llm = ScriptedLlm(steps=[{"raise": "429 RESOURCE_EXHAUSTED: quota exceeded"}] * 5)
+    try:
+        result = supervise(work_order_id, llm=llm, turn_budget=3)
+    finally:
+        reset_supervisor_config()
+
+    assert result.overall_status == "failed"
+    assert "turn budget" in (result.reason or "")
+    assert "RESOURCE_EXHAUSTED" in (result.reason or "")
+
+
 def test_supervisor_marks_failed_when_worker_fails(tmp_path: Path, durable_db) -> None:
     from agent.runner import supervise
     from agent.supervisor import reset_supervisor_config

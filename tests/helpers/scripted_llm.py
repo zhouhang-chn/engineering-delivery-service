@@ -25,6 +25,7 @@ class ScriptedLlm(BaseLlm):
     Steps (list of dicts):
       {"tool": "tool_name", "args": {...}}  -> one function call
       {"text": "..."}                       -> plain text response
+      {"raise": "message"}                  -> model call blows up
       {"poll_worker": "done", "work_order_id": "..."}
         -> repeatedly call ``get_worker_status`` (the real durable
            tool) until ``status_fn`` reports the expected status, then
@@ -49,6 +50,8 @@ class ScriptedLlm(BaseLlm):
             time.sleep(POLL_INTERVAL_S)
             return {"tool": "get_worker_status", "args": {"work_order_id": step["work_order_id"]}}
         self.steps.pop(0)
+        if "raise" in step:
+            raise RuntimeError(step["raise"])
         return step
 
     async def generate_content_async(self, llm_request, stream=False):

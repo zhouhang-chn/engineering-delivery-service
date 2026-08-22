@@ -48,6 +48,17 @@ done, or the deployment is unreachable/unhealthy after a successful
 deploy. Give the precise, factual reason — it is persisted as the
 failure artifact for humans.
 
+A Worker `failed` status has two very different causes. Read its
+`error`:
+
+- **Runtime crash** — the error names the infrastructure (e.g. the
+  worker runtime failed to start), no engineering happened. Restart
+  the turn once with `start_worker_turn`. If the same crash recurs,
+  `mark_failed` quoting the Worker error verbatim.
+- **Engineering failure** — the Worker ran but its work failed (red
+  tests, no candidate). Judge from the recorded evidence whether
+  another turn can help; if not, `mark_failed` with the factual cause.
+
 ## Clarifications and gaps
 
 Keep `gaps` on the work order current via `update_work_order` when you

@@ -141,6 +141,64 @@ def test_default_registry_is_durable(tmp_path: Path, durable_db) -> None:
     assert get_work_order("wo-default")["worker_status"] == "done"
 
 
+class _CrashingWorker:
+    """A worker runtime whose execute dies before any terminal status."""
+
+    def execute(self, work_order_id, task, registry) -> None:
+        raise FileNotFoundError(2, "No such file or directory", "http://localhost:1455")
+
+
+def _await_terminal(registry, work_order_id: str, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if registry.get(work_order_id).status in ("done", "failed"):
+            return
+        time.sleep(0.02)
+
+
+def test_run_worker_task_crash_surfaces_as_failed(tmp_path: Path) -> None:
+    """A crashing worker thread must land as failed, not die silently.
+
+    An uncaught exception in the worker thread used to leave the status
+    on ``running`` forever, stalling the Supervisor mid-turn.
+    """
+    registry = InMemoryWorkerRegistry()
+    run_worker_task(
+        "wo-crash",
+        make_task(tmp_path),
+        worker=_CrashingWorker(),
+        registry=registry,
+    )
+
+    _await_terminal(registry, "wo-crash")
+    status = registry.get("wo-crash")
+    assert status.status == "failed"
+    assert "http://localhost:1455" in status.error
+    assert any(event.type == "crash" for event in status.events)
+
+
+def test_run_worker_task_crash_is_durable(tmp_path: Path, durable_db) -> None:
+    """Crash facts survive in the durable registry the Supervisor reads."""
+    from tools.work_order import get_work_order
+
+    run_worker_task(
+        "wo-crash-db",
+        make_task(tmp_path),
+        worker=_CrashingWorker(),
+    )
+
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if get_worker_status("wo-crash-db").status in ("done", "failed"):
+            break
+        time.sleep(0.02)
+    status = get_worker_status("wo-crash-db")
+    assert status.status == "failed"
+    assert "FileNotFoundError" in status.error
+    assert any(event.type == "crash" for event in status.events)
+    assert get_work_order("wo-crash-db")["worker_status"] == "failed"
+
+
 def test_map_item_shapes() -> None:
     mapped = worker_driver._map_item(
         {"type": "commandExecution", "command": "pytest", "status": "completed",

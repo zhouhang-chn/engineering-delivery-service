@@ -126,6 +126,7 @@ async def _supervise_async(
     runner = Runner(app_name=APP_NAME, agent=active_agent, session_service=service)
 
     turns = 0
+    last_error: str | None = None
     for turn in range(1, turn_budget + 1):
         state = get_current_state(work_order_id)
         if state["overall_status"] in TERMINAL_STATUSES:
@@ -160,6 +161,7 @@ async def _supervise_async(
             payload["decision"] = decision[:DECISION_EXCERPT_CHARS]
         if run_error:
             payload["error"] = run_error[:DECISION_EXCERPT_CHARS]
+            last_error = run_error
         with session_scope() as session:
             append_event(session, work_order_id, "supervisor_turn", payload)
 
@@ -168,6 +170,10 @@ async def _supervise_async(
         reason = (
             f"supervisor turn budget ({turn_budget}) exhausted without a terminal decision"
         )
+        if last_error:
+            # the budget message alone hides the cause (e.g. every model
+            # call dying to a 429 quota) — name the last observed error
+            reason = f"{reason}; last turn error: {last_error[:DECISION_EXCERPT_CHARS]}"
         mark_failed(work_order_id, reason)
         final_state = get_current_state(work_order_id)
 
