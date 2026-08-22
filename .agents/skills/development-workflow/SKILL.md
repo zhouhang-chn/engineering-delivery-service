@@ -50,10 +50,16 @@ PLANNED → IN-PROGRESS → COMPLETE
 1. Create and checkout version branch: `git checkout -b vX.Y-description`
 2. Update `docs/milestones.md` status to `IN-PROGRESS`.
 3. Review [docs/designs/](../../../docs/designs/) and the core design principles above.
-4. Write `gap-analysis.md` and `design.md`.
-5. If splitting into iterations, write `iterations.md` and iteration design docs.
-6. Write `action-plan.md` with explicit task IDs (e.g. `T1`, `T2`). Ensure the LAST task is: *"Mark version COMPLETE — run `uv run python .agents/scripts/verify_version.py <version>`, update docs/milestones.md, finalize retrospect.md"*.
-7. Write at least one failing test that captures the version's core behavior before writing implementation code (Test-First).
+4. Probe the actually-installed versions of key SDKs your design assumes
+   (`uv run python -c "import x; print(x.__version__)"`, signatures via
+   `inspect`) and adjust the design to the resolved generation — version
+   ranges like `>=0.2.0` can resolve to API-incompatible rewrites
+   (v0.1 lesson: a2a-sdk 0.2-era pydantic API vs the 1.x proto-first
+   rewrite; ADK `Runner.run(content=)` vs `new_message=`).
+5. Write `gap-analysis.md` and `design.md`.
+6. If splitting into iterations, write `iterations.md` and iteration design docs.
+7. Write `action-plan.md` with explicit task IDs (e.g. `T1`, `T2`). Ensure the LAST task is: *"Mark version COMPLETE — run `uv run python .agents/scripts/verify_version.py <version>`, update docs/milestones.md, finalize retrospect.md"*.
+8. Write at least one failing test that captures the version's core behavior before writing implementation code (Test-First).
 
 ### Phase 2: Implementation & Continuous Notes
 1. Implement tasks one by one.

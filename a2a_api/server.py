@@ -91,6 +91,7 @@ def build_artifacts(state: dict) -> list[dict]:
     artifacts: list[dict] = []
 
     def add(name: str, text: str) -> None:
+        """Append one text artifact under the next artifact id."""
         artifacts.append(
             {
                 "artifactId": str(len(artifacts) + 1),
@@ -207,6 +208,7 @@ class JsonRpcError(Exception):
         self.message = message
 
     def as_dict(self) -> dict:
+        """Render the error as a JSON-RPC error object."""
         return {"code": self.code, "message": self.message}
 
 
