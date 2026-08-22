@@ -47,3 +47,19 @@ A deployment counts as live only when:
 - Production environments, TLS, custom domains.
 - Per-project deployment configuration (v0.5).
 - Zero-downtime rollout and explicit rollback automation (v0.6).
+
+## 6. Performance Backlog
+
+- **TODO — publish the template as a prebuilt base image** so a candidate
+  build's happy path is only `FROM <eds-base-image>` plus `COPY` of the
+  application source. Today the template Dockerfile runs
+  `pip install --no-cache-dir .` in `python:3.12-slim`, so every work
+  order pays a cold dependency resolve + download of the
+  FastAPI/uvicorn/starlette/pydantic tree from PyPI — measured at 5m34s of
+  the 10m27s end-to-end on wo-58d2589e0dbe (2026-08-22), i.e. over half
+  the wall-clock, with no model involved. Bake the locked dependency
+  stack into a published base image (rebuilt when the template's
+  dependencies change); the deploy build then reduces to source copies and
+  the pip step disappears from the per-work-order path. Interim
+  mitigations if the base image is blocked: drop `--no-cache-dir` and
+  mount a shared pip cache so resolve/download is paid once per host.
